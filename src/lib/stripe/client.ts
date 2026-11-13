@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 
 export const STRIPE_CONFIG = {
-  proPriceId: process.env.STRIPE_PRO_PRICE_ID || 'price_1TestProMonthly',
+  proPriceId: process.env.STRIPE_PRO_PRICE_ID || 'price_1UbEvhBjpzRnsPk30ayCPI2c',
   webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 };
 

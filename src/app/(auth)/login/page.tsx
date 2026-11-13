@@ -1,10 +1,25 @@
-import { signIn } from '@/lib/auth';
+import { Suspense } from 'react';
+import { signIn, auth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { connection } from 'next/server';
+
+async function LoggedInRedirect() {
+  await connection();
+  const session = await auth();
+  if (session?.user?.id) {
+    redirect('/dashboard');
+  }
+  return null;
+}
 
 export default async function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <Suspense fallback={null}>
+        <LoggedInRedirect />
+      </Suspense>
       <div className="w-full max-w-sm rounded border border-border bg-card p-6 shadow-xs">
         <div className="mb-6">
           <Link href="/" className="inline-flex items-center gap-2 mb-4">

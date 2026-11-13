@@ -18,6 +18,8 @@ const prodSchema = z.object({
   // Stripe secrets optional in production until Phase 4 (Stripe billing integration)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRO_PRICE_ID: z.string().optional(),
+  NEXT_PUBLIC_STRIPE_PRO_PRICE: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL in production'),
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY is required in production'),
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
@@ -34,6 +36,8 @@ const nonProdSchema = z.object({
   MONGODB_URI: z.string().min(1).default('mongodb://127.0.0.1:27017/answerdesk'),
   STRIPE_SECRET_KEY: z.string().optional().default('sk_test_mock'),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default('whsec_mock'),
+  STRIPE_PRO_PRICE_ID: z.string().optional().default('price_1TestProMonthly'),
+  NEXT_PUBLIC_STRIPE_PRO_PRICE: z.string().optional().default('₹999'),
   NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
   GEMINI_API_KEY: z.string().optional().default('mock-gemini-api-key'),
   BLOB_READ_WRITE_TOKEN: z.string().optional().default('mock-blob-token'),

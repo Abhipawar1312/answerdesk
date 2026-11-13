@@ -2,8 +2,13 @@ import { Suspense } from 'react';
 import { Header } from '@/components/common/header';
 import { MarketingHero } from '@/components/marketing/hero';
 import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
 import { Check } from 'lucide-react';
+import {
+  StarterPricingButton,
+  StarterPricingButtonSkeleton,
+  ProPricingButton,
+  ProPricingButtonSkeleton,
+} from '@/components/marketing/pricing-cta';
 
 function HeaderSkeleton() {
   return (
@@ -91,7 +96,7 @@ export default function LandingPage() {
                   <h3 className="text-sm font-semibold">Starter</h3>
                   <p className="mt-1 text-xs text-muted-foreground">For small teams and prototypes.</p>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-semibold">$0</span>
+                    <span className="text-3xl font-semibold">₹0</span>
                     <span className="text-xs text-muted-foreground">/ month</span>
                   </div>
 
@@ -116,12 +121,9 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mt-8">
-                  <Link
-                    href="/login"
-                    className={buttonVariants({ variant: 'outline' }) + ' w-full text-xs text-center justify-center'}
-                  >
-                    Get Started Free
-                  </Link>
+                  <Suspense fallback={<StarterPricingButtonSkeleton />}>
+                    <StarterPricingButton />
+                  </Suspense>
                 </div>
               </div>
 
@@ -136,7 +138,7 @@ export default function LandingPage() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">For production customer support.</p>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-semibold">{process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE || '$49'}</span>
+                    <span className="text-3xl font-semibold">{process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE || '₹999'}</span>
                     <span className="text-xs text-muted-foreground">/ month</span>
                     <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded border border-border text-muted-foreground bg-muted">
                       Test Mode
@@ -168,12 +170,9 @@ export default function LandingPage() {
                 </div>
 
                 <div className="mt-8">
-                  <Link
-                    href="/login"
-                    className={buttonVariants({ variant: 'default' }) + ' w-full text-xs text-center justify-center'}
-                  >
-                    Start with Pro
-                  </Link>
+                  <Suspense fallback={<ProPricingButtonSkeleton />}>
+                    <ProPricingButton />
+                  </Suspense>
                 </div>
               </div>
             </div>

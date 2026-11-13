@@ -1,5 +1,7 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
+import { HeroCtaButton, HeroCtaButtonSkeleton } from './pricing-cta';
 
 export function MarketingHero() {
   return (
@@ -15,9 +17,9 @@ export function MarketingHero() {
         and answers customer inquiries with direct source citations, explicitly indicating when information is not found in your documentation.
       </p>
       <div className="mt-8 flex items-center justify-center gap-3">
-        <Link href="/login" className={buttonVariants({ variant: 'default', size: 'default' })}>
-          Get Started
-        </Link>
+        <Suspense fallback={<HeroCtaButtonSkeleton />}>
+          <HeroCtaButton />
+        </Suspense>
         <Link href="#pricing" className={buttonVariants({ variant: 'outline', size: 'default' })}>
           View Pricing
         </Link>

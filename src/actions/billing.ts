@@ -51,23 +51,72 @@ export async function createCheckoutSessionAction(
     }
 
     // 2. Create Stripe Checkout Session
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: 'subscription',
-      line_items: [
-        {
-          price: STRIPE_CONFIG.proPriceId,
-          quantity: 1,
+    let checkoutSession;
+    try {
+      checkoutSession = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: 'subscription',
+        line_items: [
+          {
+            price: STRIPE_CONFIG.proPriceId,
+            quantity: 1,
+          },
+        ],
+        client_reference_id: workspace._id.toString(),
+        metadata: {
+          workspaceId: workspace._id.toString(),
+          workspaceSlug: workspace.slug,
         },
-      ],
-      client_reference_id: workspace._id.toString(),
-      metadata: {
-        workspaceId: workspace._id.toString(),
-        workspaceSlug: workspace.slug,
-      },
-      success_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=cancelled`,
-    });
+        success_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=cancelled`,
+      });
+    } catch (checkoutErr: unknown) {
+      const isMissingCustomer =
+        checkoutErr instanceof Error &&
+        (checkoutErr.message.includes('No such customer') ||
+          ('code' in checkoutErr && (checkoutErr as { code: string }).code === 'resource_missing'));
+
+      if (isMissingCustomer) {
+        // Stale customer ID from another Stripe account or sandbox. Re-create customer in active account.
+        const freshCustomer = await stripe.customers.create({
+          email: session.user?.email || undefined,
+          name: workspace.name,
+          metadata: {
+            workspaceId: workspace._id.toString(),
+            workspaceSlug: workspace.slug,
+            ownerId: workspace.ownerId.toString(),
+          },
+        });
+        customerId = freshCustomer.id;
+
+        await updateWorkspaceSubscription(workspace._id, {
+          plan: 'free',
+          stripeCustomerId: customerId,
+          messageLimit: workspace.messageLimit,
+          dailyMessageCap: workspace.dailyMessageCap || 50,
+        });
+
+        checkoutSession = await stripe.checkout.sessions.create({
+          customer: customerId,
+          mode: 'subscription',
+          line_items: [
+            {
+              price: STRIPE_CONFIG.proPriceId,
+              quantity: 1,
+            },
+          ],
+          client_reference_id: workspace._id.toString(),
+          metadata: {
+            workspaceId: workspace._id.toString(),
+            workspaceSlug: workspace.slug,
+          },
+          success_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${appBaseUrl}/dashboard/${workspace.slug}/settings?upgrade=cancelled`,
+        });
+      } else {
+        throw checkoutErr;
+      }
+    }
 
     if (!checkoutSession.url) {
       return { success: false, error: 'Failed to generate Stripe checkout URL.' };
