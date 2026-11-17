@@ -25,6 +25,8 @@ const prodSchema = z.object({
   BLOB_READ_WRITE_TOKEN: z.string().optional(),
   UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional().default('AnswerDesk <onboarding@resend.dev>'),
 });
 
 // Non-production schema: safe defaults permitted for local development and test runners.
@@ -43,6 +45,8 @@ const nonProdSchema = z.object({
   BLOB_READ_WRITE_TOKEN: z.string().optional().default('mock-blob-token'),
   UPSTASH_REDIS_REST_URL: z.string().optional().default('https://mock-redis.upstash.io'),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional().default('mock-redis-token'),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional().default('AnswerDesk <onboarding@resend.dev>'),
 });
 
 const schema = isProduction ? prodSchema : nonProdSchema;

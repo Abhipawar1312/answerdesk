@@ -16,11 +16,19 @@ export function MarketingHero() {
         Upload manuals, policies, and FAQs. AnswerDesk indexes your knowledge base with vector search
         and answers customer inquiries with direct source citations, explicitly indicating when information is not found in your documentation.
       </p>
-      <div className="mt-8 flex items-center justify-center gap-3">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <Suspense fallback={<HeroCtaButtonSkeleton />}>
           <HeroCtaButton />
         </Suspense>
-        <Link href="#pricing" className={buttonVariants({ variant: 'outline', size: 'default' })}>
+        <Link
+          href="/widget/demo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonVariants({ variant: 'outline', size: 'default' })}
+        >
+          Try the Demo
+        </Link>
+        <Link href="#pricing" className={buttonVariants({ variant: 'ghost', size: 'default' })}>
           View Pricing
         </Link>
       </div>

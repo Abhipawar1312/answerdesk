@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, X, ExternalLink, Bot, User, Sparkles } from 'lucide-react';
+import { Send, X, ExternalLink, Bot, User, Sparkles, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cleanAnswerText } from '@/services/citation-resolver';
@@ -19,6 +19,8 @@ interface MessageItem {
   content: string;
   citations?: Citation[];
   isStreaming?: boolean;
+  isError?: boolean;
+  retryPrompt?: string;
 }
 
 interface WidgetChatClientProps {
@@ -42,6 +44,7 @@ export function WidgetChatClient({
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const retryPromptRef = useRef<string>('');
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -54,9 +57,21 @@ export function WidgetChatClient({
     window.parent?.postMessage('answerdesk:close', '*');
   };
 
+  const handleRetry = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const prompt = e.currentTarget.getAttribute('data-prompt');
+    if (!prompt || isStreaming) return;
+    retryPromptRef.current = prompt;
+    const form = document.querySelector('form');
+    if (form) {
+      form.requestSubmit();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = input.trim();
+    const promptToSend = retryPromptRef.current || input;
+    retryPromptRef.current = '';
+    const trimmed = promptToSend.trim();
     if (!trimmed || isStreaming) return;
 
     setInput('');
@@ -80,6 +95,23 @@ export function WidgetChatClient({
     setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
     setIsStreaming(true);
 
+    const markAssistantError = () => {
+      const fallback = 'Something went wrong. Please try again.';
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantPlaceholderId
+            ? {
+                ...msg,
+                content: fallback,
+                isStreaming: false,
+                isError: true,
+                retryPrompt: trimmed,
+              }
+            : msg
+        )
+      );
+    };
+
     try {
       const response = await fetch('/api/chat/public', {
         method: 'POST',
@@ -94,17 +126,19 @@ export function WidgetChatClient({
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with status ${response.status}`);
+        markAssistantError();
+        return;
       }
 
       if (!response.body) {
-        throw new Error('No readable response body stream received.');
+        markAssistantError();
+        return;
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let receivedAnyDelta = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -133,6 +167,7 @@ export function WidgetChatClient({
                 )
               );
             } else if (data.type === 'delta') {
+              receivedAnyDelta = true;
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantPlaceholderId
@@ -150,34 +185,20 @@ export function WidgetChatClient({
                 )
               );
             } else if (data.type === 'error') {
-              setErrorMessage(data.error);
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantPlaceholderId
-                    ? {
-                        ...msg,
-                        content: data.error || 'A problem occurred while answering.',
-                        isStreaming: false,
-                      }
-                    : msg
-                )
-              );
+              markAssistantError();
+              return;
             }
           } catch {
             // Ignore partial SSE JSON parse failures
           }
         }
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unable to connect to support assistant.';
-      setErrorMessage(msg);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantPlaceholderId
-            ? { ...m, content: msg, isStreaming: false }
-            : m
-        )
-      );
+
+      if (!receivedAnyDelta) {
+        markAssistantError();
+      }
+    } catch {
+      markAssistantError();
     } finally {
       setIsStreaming(false);
     }
@@ -259,14 +280,34 @@ export function WidgetChatClient({
                     className={`p-3 rounded-2xl text-xs leading-relaxed ${
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        : msg.isError
+                        ? 'bg-destructive/10 text-foreground border border-destructive/20 rounded-tl-sm'
                         : 'bg-muted/60 text-foreground border border-border/50 rounded-tl-sm'
                     }`}
                   >
-                    {(msg.role === 'assistant' ? cleanAnswerText(msg.content) : msg.content) || (msg.isStreaming && (
-                      <span className="inline-block animate-pulse text-muted-foreground">
-                        Thinking...
-                      </span>
-                    ))}
+                    {(msg.role === 'assistant'
+                      ? cleanAnswerText(msg.content) || (msg.isError ? 'Something went wrong. Please try again.' : '')
+                      : msg.content) ||
+                      (msg.isStreaming && (
+                        <span className="inline-block animate-pulse text-muted-foreground">
+                          Thinking...
+                        </span>
+                      ))}
+
+                    {msg.isError && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={handleRetry}
+                          data-prompt={msg.retryPrompt}
+                          disabled={isStreaming}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Retry</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

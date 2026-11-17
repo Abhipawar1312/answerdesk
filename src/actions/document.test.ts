@@ -370,7 +370,7 @@ describe('Document Upload Action & Storage Key Security', () => {
     it('handles embedding failure: deletes chunks, sets status to failed, and sanitizes error message', async () => {
       vi.mocked(embeddingModule.embedDocumentChunks).mockRejectedValueOnce(
         new embeddingModule.EmbeddingServiceError(
-          'The AI embedding service is temporarily busy due to rate limits. Please try again in a few moments.'
+          'The assistant is temporarily busy. Please try again in a few moments.'
         )
       );
 
@@ -381,7 +381,7 @@ describe('Document Upload Action & Storage Key Security', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('temporarily busy due to rate limits');
+      expect(result.error).toContain('The assistant is temporarily busy');
 
       const docs = await getWorkspaceDocuments(workspaceId);
       const doc = docs.find((d) => d.title === 'Rate Limited FAQ');

@@ -218,12 +218,6 @@ export async function POST(req: Request) {
 
     // 11. Stream generative answer from Gemini Flash Lite (output length capped at 500 tokens)
     const chatModel = googleAI(CHAT_CONFIG.model);
-    const result = streamText({
-      model: chatModel,
-      system: systemPrompt,
-      prompt: userPrompt,
-      maxOutputTokens: 500,
-    });
 
     const activeConversationId = conv._id;
     const activeWorkspaceId = workspace._id;
@@ -234,17 +228,49 @@ export async function POST(req: Request) {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
-        try {
-          let fullResponseText = '';
+        let fullResponseText = '';
+        let attempt = 0;
 
-          // 1. Stream response deltas
-          for await (const textDelta of result.textStream) {
-            fullResponseText += textDelta;
+        while (true) {
+          try {
+            const result = streamText({
+              model: chatModel,
+              system: systemPrompt,
+              prompt: userPrompt,
+              maxOutputTokens: 500,
+            });
+
+            // 1. Stream response deltas
+            for await (const textDelta of result.textStream) {
+              fullResponseText += textDelta;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'delta', delta: textDelta })}\n\n`)
+              );
+            }
+            break;
+          } catch (streamErr) {
+            const classified = classifyAIError(streamErr, 'chat-stream-public');
+            // Retry ONCE with a short delay if failed before emitting any chunks
+            if (attempt === 0 && fullResponseText === '' && classified.isRateLimit) {
+              attempt++;
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              continue;
+            }
+
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: 'delta', delta: textDelta })}\n\n`)
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  type: 'error',
+                  error: classified.friendlyMessage,
+                })}\n\n`
+              )
             );
+            controller.close();
+            return;
           }
+        }
 
+        try {
           // Safety check: ensure answer does not repeat or leak system prompt text
           let finalAssistantContent = fullResponseText;
           if (detectSystemPromptLeak(fullResponseText)) {
@@ -275,17 +301,20 @@ export async function POST(req: Request) {
             )
           );
 
-          // 4. Atomically increment quota upon successfully answering and persist message
-          await incrementWorkspaceMessageCount(activeWorkspaceId);
+          // 4. Atomically increment quota upon successfully answering and persist message only if non-empty
+          const cleanedText = cleanAnswerText(finalAssistantContent);
+          if (cleanedText.trim().length > 0) {
+            await incrementWorkspaceMessageCount(activeWorkspaceId);
 
-          await createWorkspaceMessage(activeWorkspaceId, {
-            conversationId: activeConversationId,
-            role: 'assistant',
-            content: cleanAnswerText(finalAssistantContent),
-            citations: usedCitations,
-            isUnanswered: false,
-            isGreeting: false,
-          });
+            await createWorkspaceMessage(activeWorkspaceId, {
+              conversationId: activeConversationId,
+              role: 'assistant',
+              content: cleanedText,
+              citations: usedCitations,
+              isUnanswered: false,
+              isGreeting: false,
+            });
+          }
 
           // 5. Emit completion event
           controller.enqueue(
@@ -299,8 +328,8 @@ export async function POST(req: Request) {
           );
 
           controller.close();
-        } catch (streamErr) {
-          const classified = classifyAIError(streamErr);
+        } catch (postErr) {
+          const classified = classifyAIError(postErr, 'chat-post-process-public');
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -326,7 +355,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: err.message }, { status: 503 });
     }
 
-    const classified = classifyAIError(err);
+    const classified = classifyAIError(err, 'chat-route-public');
     return NextResponse.json({ error: classified.friendlyMessage }, { status: 500 });
   }
 }

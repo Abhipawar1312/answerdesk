@@ -17,6 +17,11 @@ if (!cached) {
 }
 
 export async function connectDB(): Promise<typeof mongoose> {
+  if (mongoose.connection.readyState === 1) {
+    if (cached) cached.conn = mongoose;
+    return mongoose;
+  }
+
   if (cached!.conn) {
     return cached!.conn;
   }

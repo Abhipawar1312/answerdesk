@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/scoped-queries';
 import { PLAN_LIMITS } from '@/lib/constants';
 import { ProcessedStripeEvent } from '@/models/ProcessedStripeEvent';
+import { sendSubscriptionSuccessEmail, sendSubscriptionCancelledEmail } from '@/lib/email';
 
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -85,6 +86,18 @@ export async function POST(req: Request) {
             messageLimit: PLAN_LIMITS.pro.monthlyMessages,
             dailyMessageCap: 500,
           });
+
+          // Send confirmation email asynchronously without blocking webhook return
+          const customerEmail = session.customer_details?.email || session.customer_email;
+          if (customerEmail) {
+            sendSubscriptionSuccessEmail({
+              to: customerEmail,
+              name: session.customer_details?.name || undefined,
+              workspaceName: session.metadata?.workspaceSlug || 'Workspace',
+            }).catch((emailErr) => {
+              console.warn('[Subscription Success Email Non-blocking Error]:', emailErr);
+            });
+          }
         }
         break;
       }
@@ -110,6 +123,34 @@ export async function POST(req: Request) {
               messageLimit: PLAN_LIMITS.pro.monthlyMessages,
               dailyMessageCap: 500,
             });
+
+            // If subscription is scheduled to cancel at period end, notify customer
+            if (subscription.cancel_at_period_end && customerId) {
+              try {
+                const customer = await stripe.customers.retrieve(customerId);
+                if (customer && !('deleted' in customer) && customer.email) {
+                  const subWithPeriod = subscription as unknown as { current_period_end?: number };
+                  const periodEndDate = subWithPeriod.current_period_end
+                    ? new Date(subWithPeriod.current_period_end * 1000).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : undefined;
+
+                  sendSubscriptionCancelledEmail({
+                    to: customer.email,
+                    name: customer.name || undefined,
+                    workspaceName: workspace.name || 'Workspace',
+                    periodEndDate,
+                  }).catch((emailErr) => {
+                    console.warn('[Subscription Cancel Email Non-blocking Error]:', emailErr);
+                  });
+                }
+              } catch (custErr) {
+                console.warn('[Stripe Customer Retrieve Warning]:', custErr);
+              }
+            }
           } else {
             // Subscription canceled, past_due, or unpaid
             await updateWorkspaceSubscription(workspace._id, {

@@ -8,6 +8,7 @@ import {
   embedQuery,
   EmbeddingServiceError,
   checkAndRecordGlobalTokenBudget,
+  classifyAIError,
 } from './embedding-service';
 import { GlobalTokenUsage } from '@/models/GlobalTokenUsage';
 
@@ -46,15 +47,12 @@ describe('Embedding Service', () => {
     await GlobalTokenUsage.deleteMany({});
   });
 
-  describe('Global Token Budget & DB Connection Guard (Item 3)', () => {
-    it('throws immediately when database is not connected', async () => {
-      await mongoose.disconnect();
-
-      await expect(checkAndRecordGlobalTokenBudget(500)).rejects.toThrow(
-        'Database connection is required to evaluate global token budget.'
-      );
-
-      await mongoose.connect(mongoServer.getUri());
+  describe('Global Token Budget & DB Connection Guard', () => {
+    it('awaits connectDB before evaluating global token budget without throwing for readyState', async () => {
+      // Connects cleanly and books tokens without throwing readyState error
+      await expect(checkAndRecordGlobalTokenBudget(500)).resolves.not.toThrow();
+      const usages = await GlobalTokenUsage.find({});
+      expect(usages.length).toBe(1);
     });
 
     it('refuses embedding requests when rolling 60-second usage exceeds 60% of 30,000 (18,000 tokens)', async () => {
@@ -64,7 +62,7 @@ describe('Embedding Service', () => {
       });
 
       await expect(checkAndRecordGlobalTokenBudget(200)).rejects.toThrow(
-        'The AI indexing service is temporarily busy due to high demand. Please try again in a minute.'
+        'The assistant is temporarily busy due to high demand. Please try again in a minute.'
       );
     });
 
@@ -260,7 +258,7 @@ describe('Embedding Service', () => {
         expect(caughtError).toBeInstanceOf(EmbeddingServiceError);
         const error = caughtError as EmbeddingServiceError;
         expect(error.message).not.toContain('AIzaSyB123SecretKey456');
-        expect(error.message).toContain('temporarily busy due to rate limits');
+        expect(error.message).toContain('The assistant is temporarily busy');
 
         setTimeoutSpy.mockRestore();
       });
@@ -299,8 +297,109 @@ describe('Embedding Service', () => {
 
     it('throws error when query text is empty or whitespace', async () => {
       await expect(embedQuery('   ')).rejects.toThrow(
-        'Query text cannot be empty for embedding.'
+        'Query text cannot be empty.'
       );
+    });
+
+    it('retries query embedding ONCE with short delay on retryable network error and succeeds on second attempt', async () => {
+      const setTimeoutSpy = vi
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((fn: unknown) => {
+          if (typeof fn === 'function') fn();
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      const netError = new Error('fetch failed');
+      netError.name = 'TypeError';
+      (netError as unknown as { cause: { code: string } }).cause = { code: 'ECONNRESET' };
+
+      vi.mocked(aiModule.embed)
+        .mockRejectedValueOnce(netError)
+        .mockResolvedValueOnce({
+          embedding: dummy768Vector,
+          usage: undefined,
+          warnings: [],
+        } as unknown as Awaited<ReturnType<typeof aiModule.embed>>);
+
+      const result = await embedQuery('What is your pricing?');
+      expect(result.length).toBe(768);
+      expect(aiModule.embed).toHaveBeenCalledTimes(2);
+
+      setTimeoutSpy.mockRestore();
+    });
+
+    it('exhausts retry on repeated network errors and throws EmbeddingServiceError', async () => {
+      const setTimeoutSpy = vi
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((fn: unknown) => {
+          if (typeof fn === 'function') fn();
+          return 0 as unknown as NodeJS.Timeout;
+        });
+
+      const timeoutError = new Error('Connection timed out');
+      timeoutError.name = 'TimeoutError';
+      (timeoutError as unknown as { code: string }).code = 'ETIMEDOUT';
+
+      vi.mocked(aiModule.embed).mockRejectedValue(timeoutError);
+
+      await expect(embedQuery('How do I contact support?')).rejects.toThrow(
+        'Something went wrong. Please try again.'
+      );
+
+      // Called initial attempt + 1 retry = 2 attempts total
+      expect(aiModule.embed).toHaveBeenCalledTimes(2);
+
+      setTimeoutSpy.mockRestore();
+    });
+  });
+
+  describe('classifyAIError (Network & Timeout Mapping)', () => {
+    it('maps fetch failed to retryable without leaking message text', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const fetchError = new TypeError('fetch failed');
+
+      const classified = classifyAIError(fetchError, 'test-query');
+      expect(classified.isRateLimit).toBe(true);
+      expect(classified.friendlyMessage).toBe('Something went wrong. Please try again.');
+
+      // Log must contain step, name, code and never leak message text
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[AI Error]: step=test-query, name=TypeError')
+      );
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringContaining('fetch failed'));
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it('maps ECONNRESET and ETIMEDOUT to retryable', () => {
+      const resetErr = { name: 'Error', code: 'ECONNRESET', message: 'socket reset' };
+      const timeoutErr = { name: 'Error', code: 'ETIMEDOUT', message: 'connection timed out' };
+
+      expect(classifyAIError(resetErr).isRateLimit).toBe(true);
+      expect(classifyAIError(timeoutErr).isRateLimit).toBe(true);
+    });
+
+    it('maps AbortError to retryable', () => {
+      const abortErr = new Error('The operation was aborted');
+      abortErr.name = 'AbortError';
+
+      const classified = classifyAIError(abortErr, 'chat-stream');
+      expect(classified.isRateLimit).toBe(true);
+      expect(classified.friendlyMessage).toBe('Something went wrong. Please try again.');
+    });
+
+    it('never leaks secret keys or prompt text in error logs', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const leakyErr = new Error('Request with secret AIzaSySecret123 failed for prompt "Customer Secret Info"');
+      leakyErr.name = 'CustomLeakyError';
+
+      classifyAIError(leakyErr, 'secure-step');
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('[AI Error]: step=secure-step, name=CustomLeakyError, code=UNKNOWN');
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringContaining('AIzaSySecret123'));
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringContaining('Customer Secret Info'));
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });

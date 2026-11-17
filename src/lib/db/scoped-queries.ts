@@ -1273,3 +1273,29 @@ export async function dismissAllWorkspaceUnansweredMessages(
   return res.modifiedCount;
 }
 
+/**
+ * Evaluates whether Atlas vector search is available and responsive.
+ * Used exclusively by /api/health monitoring.
+ */
+export async function checkVectorSearchHealth(): Promise<boolean> {
+  try {
+    const dummyId = new Types.ObjectId();
+    await SourceDocumentChunk.aggregate([
+      {
+        $vectorSearch: {
+          index: 'vector_index',
+          path: 'embedding',
+          queryVector: new Array(768).fill(0),
+          numCandidates: 1,
+          limit: 1,
+          filter: { workspaceId: { $eq: dummyId } },
+        },
+      },
+    ]);
+    return true;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '';
+    return !msg.includes('index not found') && !msg.includes('vector_index');
+  }
+}
+

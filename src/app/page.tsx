@@ -115,7 +115,7 @@ export default function LandingPage() {
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-3.5 w-3.5 text-foreground" />
-                      <span>Standard vector search</span>
+                      <span>Semantic knowledge search</span>
                     </li>
                   </ul>
                 </div>

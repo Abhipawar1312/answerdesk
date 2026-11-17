@@ -1,26 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/**
- * Demo Data Seeder for AnswerDesk.
- * Creates a demo workspace with synthetic FAQs in English, Hindi, and Marathi.
- *
- * STRICT SAFETY GUARD:
- * Refuses to run against production database environments.
- */
 import fs from 'node:fs';
 import path from 'node:path';
-import Module from 'node:module';
 import mongoose from 'mongoose';
+import { embedMany } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { Workspace } from '../src/models/Workspace';
+import { SourceDocument } from '../src/models/SourceDocument';
+import { SourceDocumentChunk } from '../src/models/SourceDocumentChunk';
+import { chunkText } from '../src/services/text-chunker';
 
-// Intercept server-only for CLI execution
-const originalRequire = (Module.prototype as any).require;
-(Module.prototype as any).require = function (id: string, ...args: any[]) {
-  if (id === 'server-only') {
-    return {};
-  }
-  return originalRequire.apply(this, [id, ...args]);
-};
-
-// Load .env.local
+// Load .env.local if present
 const envPath = path.resolve(process.cwd(), '.env.local');
 if (fs.existsSync(envPath)) {
   const content = fs.readFileSync(envPath, 'utf8');
@@ -38,183 +26,200 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-async function runSeed() {
-  console.log('=============================================');
-  console.log('       AnswerDesk Demo Workspace Seeder       ');
-  console.log('=============================================\n');
+/**
+ * Demo workspace seed script.
+ * Creates a public demo workspace with sample FAQs in English, Hindi, and Marathi.
+ * Refuses to run unless ALLOW_DEMO_SEED=true is set in the environment.
+ */
+async function seedDemoWorkspace() {
+  console.log('--- Starting Demo Workspace Seed ---');
 
-  // 1. Strict Production Safety Refusal
-  const mongoUri = process.env.MONGODB_URI || '';
-  const nodeEnv = process.env.NODE_ENV || 'development';
-
-  const isProduction =
-    nodeEnv === 'production' ||
-    mongoUri.toLowerCase().includes('prod') ||
-    mongoUri.toLowerCase().includes('production') ||
-    mongoUri.toLowerCase().includes('live');
-
-  if (isProduction && process.env.ALLOW_PROD_SEED !== 'true') {
-    console.error('❌ SAFETY REFUSAL: Seed script cannot run against a production database.');
-    console.error('   Detected NODE_ENV=production or production keywords in MONGODB_URI.');
-    console.error('   Aborting immediately to prevent accidental data corruption.');
+  // Safety gate: Refuse to run against any database without explicit authorization
+  if (process.env.ALLOW_DEMO_SEED !== 'true') {
+    console.error('❌ SAFETY REFUSAL: The target database is not marked as demo-safe.');
+    console.error('To run this script, set ALLOW_DEMO_SEED=true in your environment or command line.');
     process.exit(1);
   }
 
+  const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    console.error('❌ Missing MONGODB_URI in environment.');
+    console.error('❌ MONGODB_URI is not set in environment.');
     process.exit(1);
   }
 
-  console.log('Connecting to database...');
-  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 8000 });
-  console.log('✓ Connected to MongoDB.\n');
+  await mongoose.connect(mongoUri);
+  console.log('✓ Connected to MongoDB database successfully');
 
-  // Load models dynamically after connection
-  const { Workspace } = await import('../src/models/Workspace');
-  const { User } = await import('../src/models/User');
-  const {
-    getWorkspaceDocuments,
-    createWorkspaceDocument,
-    updateWorkspaceDocumentStatus,
-    insertWorkspaceDocumentChunks,
-  } = await import('../src/lib/db/scoped-queries');
-  const { chunkText } = await import('../src/services/text-chunker');
-  const { embedDocumentChunks } = await import('../src/services/embedding-service');
+  const DEMO_SLUG = 'demo';
+  const demoUserId = new mongoose.Types.ObjectId('000000000000000000000001');
 
-  // 2. Create or find Demo Owner
-  const demoEmail = 'demo-owner@answerdesk.example.com';
-  let demoUser = await User.findOne({ email: demoEmail });
-  if (!demoUser) {
-    demoUser = await User.create({
-      name: 'Demo Admin',
-      email: demoEmail,
-      image: 'https://api.dicebear.com/7.x/bottts/svg?seed=demo-admin',
-    });
-    console.log(`✓ Created demo user: ${demoEmail}`);
-  } else {
-    console.log(`✓ Found existing demo user: ${demoEmail}`);
-  }
+  // 1. Find or create demo workspace
+  let demoWorkspace = await Workspace.findOne({ slug: DEMO_SLUG });
 
-  // 3. Create or Reset Demo Workspace
-  const demoSlug = 'acme-demo';
-  let demoWs = await Workspace.findOne({ slug: demoSlug });
-  if (!demoWs) {
-    demoWs = await Workspace.create({
-      name: 'Acme Global Demo',
-      slug: demoSlug,
-      ownerId: demoUser._id,
-      plan: 'pro',
-      monthlyMessageCount: 14,
-      messageLimit: 2500,
-      dailyMessageCap: 500,
-      allowedOrigins: ['http://localhost:3000', 'http://localhost:5000'],
+  if (!demoWorkspace) {
+    demoWorkspace = await Workspace.create({
+      name: 'AnswerDesk Demo (Public)',
+      slug: DEMO_SLUG,
+      ownerId: demoUserId,
+      plan: 'free',
+      monthlyMessageCount: 0,
+      messageLimit: 20, // Strict message cap for public demo
+      dailyMessageCap: 10,
+      allowedOrigins: ['*'], // Allow public browser testing
       hideCitationsInWidget: false,
     });
-    console.log(`✓ Created demo workspace: "${demoWs.name}" (/dashboard/${demoSlug})`);
+    console.log(`✓ Created new demo workspace "${demoWorkspace.name}" with strict message cap (20 msgs/mo)`);
   } else {
-    console.log(`✓ Found existing demo workspace: "${demoWs.name}" (/dashboard/${demoSlug})`);
+    demoWorkspace.name = 'AnswerDesk Demo (Public)';
+    demoWorkspace.messageLimit = 20;
+    demoWorkspace.allowedOrigins = ['*'];
+    await demoWorkspace.save();
+    console.log(`✓ Updated existing demo workspace "${demoWorkspace.name}" (cap: 20 msgs/mo)`);
   }
 
-  // 4. Synthetic Multilingual Knowledge Base Articles (No real data)
-  const demoFaqs = [
+  // 2. Clean previous demo documents and chunks for clean idempotency
+  await SourceDocumentChunk.deleteMany({ workspaceId: demoWorkspace._id });
+  await SourceDocument.deleteMany({ workspaceId: demoWorkspace._id });
+  console.log('✓ Cleared previous demo documents and chunks');
+
+  // 3. Multilingual Sample FAQs (No real or private customer data)
+  const sampleFaqs = [
     {
-      title: 'Acme Returns & Refund Policy',
+      title: 'AnswerDesk Product Overview (English)',
       fileType: 'faq' as const,
-      content:
-        'Acme offers a 30-day full refund policy for all subscription plans. ' +
-        'If you are unsatisfied for any reason, email billing@acme.example.com with your receipt. ' +
-        'Refunds are credited back to your original payment method within 5 to 7 business days. ' +
-        'Hardware returns require the original product packaging and return merchandise authorization (RMA).',
+      content: `What is AnswerDesk?
+AnswerDesk is an AI-powered customer support assistant that answers visitor questions using your own verified documentation.
+
+How does AnswerDesk work?
+AnswerDesk breaks down your knowledge base articles into semantic chunks, creates high-dimensional representations, and finds relevant sections to answer visitor questions with accurate source citations.
+
+What languages does AnswerDesk support?
+AnswerDesk natively understands and answers questions in English, Hindi, and Marathi.
+
+How do I integrate the widget?
+You can embed the widget on any website by adding a single script tag with your workspace slug before the closing body tag.
+
+Can AnswerDesk prevent answers to off-topic questions?
+Yes, AnswerDesk is grounded strictly in your provided knowledge articles. If an inquiry cannot be answered by your knowledge base, it politely directs the customer to your support team.`,
     },
     {
-      title: 'Acme SLA and Support Hours',
+      title: 'AnswerDesk उत्पाद प्रश्नोत्तरी (हिंदी)',
       fileType: 'faq' as const,
-      content:
-        'Acme customer support is available 24/7/365 via our live chat widget and email. ' +
-        'Enterprise customers receive a guaranteed 15-minute response SLA for critical outages. ' +
-        'Standard business tier inquiries are resolved within 4 business hours. ' +
-        'Scheduled maintenance occurs on Sundays between 02:00 and 04:00 UTC.',
+      content: `AnswerDesk क्या है?
+AnswerDesk एक AI-आधारित ग्राहक सहायता सहायक है जो आपके ज्ञानकोष (knowledge base) के आधार पर ग्राहकों के सवालों के सटीक उत्तर देता है।
+
+AnswerDesk कैसे काम करता है?
+AnswerDesk आपके दस्तावेज़ों को सुरक्षित रूप से संसाधित करता है और जब कोई ग्राहक प्रश्न पूछता है, तो वह सबसे प्रासंगिक जानकारी ढूंढकर सटीक उत्तर प्रदान करता है।
+
+AnswerDesk किन भाषाओं का समर्थन करता है?
+AnswerDesk अंग्रेजी, हिंदी और मराठी तीनों भाषाओं में सहजता से संवाद कर सकता है।
+
+वेबसाइट पर विजेट कैसे लगाएं?
+आप डैशबोर्ड से एक साधारण जावास्क्रिप्ट कोड कॉपी करके अपनी वेबसाइट के बॉडी टैग के अंत में पेस्ट कर सकते हैं।
+
+यदि कोई सवाल ज्ञानकोष में न हो तो क्या होता है?
+यदि किसी प्रश्न का उत्तर ज्ञानकोष में उपलब्ध नहीं है, तो AnswerDesk गलत जानकारी देने के बजाय ग्राहक को आपकी सहायता टीम से संपर्क करने का सुझाव देता है।`,
     },
     {
-      title: 'एक्मे वापसी और धनवापसी नीति (Hindi Support)',
+      title: 'AnswerDesk उत्पादन माहिती (मराठी)',
       fileType: 'faq' as const,
-      content:
-        'एक्मे सभी सॉफ्टवेयर सदस्यता के लिए ३० दिनों की बिना किसी परेशानी के धनवापसी प्रदान करता है। ' +
-        'धनवापसी का अनुरोध करने के लिए, अपने चालान नंबर के साथ support@acme.example.com पर संपर्क करें। ' +
-        'धनवापसी राशि ५ से ७ कार्य दिवसों में आपके बैंक खाते में जमा कर दी जाएगी। ' +
-        'हमारी तकनीकी सहायता टीम सप्ताह के सातों दिन २४ घंटे उपलब्ध है।',
-    },
-    {
-      title: 'एक्मे ग्राहक सहाय्यता आणि परतावा धोरण (Marathi Support)',
-      fileType: 'faq' as const,
-      content:
-        'एक्मे सर्व सॉफ्टवेअर सबस्क्रिप्शनसाठी ३० दिवसांचा १०० टक्के परतावा देतो। ' +
-        'परतावा मिळवण्यासाठी support@acme.example.com वर ईमेल पाठवा। ' +
-        'परताव्याची रक्कम ५ ते ७ व्यावसायिक दिवसांत थेट बँक खात्यात जमा होते। ' +
-        'कोणत्याही मदतीसाठी आमची ग्राहक सेवा २४ तास उपलब्ध आहे।',
+      content: `AnswerDesk म्हणजे काय?
+AnswerDesk हे एक AI-संचालित ग्राहक सहाय्यक व्यासपीठ आहे जे तुमच्या अधिकृत माहिती लेखांचा संदर्भ घेऊन ग्राहकांच्या प्रश्नांची अचूक उत्तरे देते.
+
+AnswerDesk कसे कार्य करते?
+AnswerDesk तुमच्या दस्तऐवजांमधील माहितीचे विश्लेषण करते आणि ग्राहक विचारत असलेल्या प्रश्नाशी सुसंगत माहिती शोधून संदर्भानुसार उत्तर तयार करते.
+
+AnswerDesk कोणत्या भाषांमध्ये उत्तर देऊ शकते?
+AnswerDesk इंग्रजी, हिंदी आणि मराठी या तिन्ही भाषांमध्ये ग्राहकांशी संवाद साधू शकते.
+
+वेबसाइटवर चॅट विजेट कसे जोडायचे?
+डॅशबोर्डवर उपलब्ध असलेला जावास्क्रिप्ट कोड कॉपी करून तुमच्या संकेतस्थळावर body टॅग संपण्यापूर्वी जोडा.
+
+माहिती उपलब्ध नसताना AnswerDesk काय करते?
+जर एखाद्या प्रश्नाचे उत्तर ज्ञानकोषात नसेल, तर चुकीची माहिती न देता AnswerDesk ग्राहकाला थेट ग्राहक सेवा प्रतिनिधीशी संपर्क साधण्याची विनंती करते.`,
     },
   ];
 
-  console.log(`\nSeeding ${demoFaqs.length} knowledge base articles...`);
+  const apiKey = process.env.GEMINI_API_KEY;
+  const googleAI = apiKey ? createGoogleGenerativeAI({ apiKey }) : null;
 
-  const existingDocs = await getWorkspaceDocuments(demoWs._id);
+  for (const faq of sampleFaqs) {
+    console.log(`Processing sample FAQ: "${faq.title}"...`);
 
-  for (const faq of demoFaqs) {
-    const alreadyExists = existingDocs.some((d) => d.title === faq.title);
-    if (alreadyExists) {
-      console.log(`  ℹ Article already exists: "${faq.title}" (skipping)`);
-      continue;
-    }
-
-    const doc = await createWorkspaceDocument(demoWs._id, {
+    const doc = await SourceDocument.create({
+      workspaceId: demoWorkspace._id,
       title: faq.title,
       content: faq.content,
       fileType: faq.fileType,
-      uploadedBy: demoUser._id,
+      status: 'processing',
+      chunkCount: 0,
+      uploadedBy: demoUserId,
     });
 
-    const chunks = chunkText(faq.content);
-    console.log(`  → Chunking "${faq.title}": generated ${chunks.length} chunks`);
+    const chunks = chunkText(faq.content, { targetTokens: 400 });
+    const chunkTexts = chunks.map((c) => c.content);
 
-    let embeddings: number[][];
-    try {
-      embeddings = await embedDocumentChunks(chunks.map((c) => c.content));
-    } catch {
-      // Fallback synthetic vector in testing/offline environments
-      embeddings = chunks.map(() => new Array(768).fill(0.04));
+    let embeddings: number[][] = [];
+    if (googleAI) {
+      try {
+        const model = googleAI.textEmbeddingModel('gemini-embedding-001');
+        const res = await embedMany({
+          model,
+          values: chunkTexts,
+          dimensions: 768,
+          providerOptions: {
+            google: {
+              taskType: 'RETRIEVAL_DOCUMENT',
+            },
+          },
+        });
+        embeddings = res.embeddings;
+      } catch {
+        console.warn(`[Warning] Embedding call failed for "${faq.title}". Using fallback vector.`);
+        embeddings = chunkTexts.map(() => new Array(768).fill(0.001));
+      }
+    } else {
+      embeddings = chunkTexts.map(() => new Array(768).fill(0.001));
     }
 
-    const chunkDocsToInsert = chunks.map((c, idx) => ({
-      chunkIndex: c.chunkIndex,
-      content: c.content,
-      tokenCount: c.tokenCount,
+    const chunkDocs = chunks.map((chunk, idx) => ({
+      workspaceId: demoWorkspace._id,
+      documentId: doc._id,
+      chunkIndex: idx,
+      content: chunk.content,
+      tokenCount: chunk.tokenCount,
       embedding: embeddings[idx],
+      embeddingModel: 'gemini-embedding-001',
       metadata: {
         sourceTitle: faq.title,
       },
     }));
 
-    await insertWorkspaceDocumentChunks(demoWs._id, doc._id, chunkDocsToInsert);
-    await updateWorkspaceDocumentStatus(demoWs._id, doc._id, {
-      status: 'ready',
-      chunkCount: chunks.length,
-    });
+    await SourceDocumentChunk.insertMany(chunkDocs);
 
-    console.log(`  ✓ Indexed "${faq.title}" with status ready.`);
+    doc.chunkCount = chunkDocs.length;
+    doc.status = 'ready';
+    await doc.save();
+
+    console.log(`✓ Indexed "${faq.title}" (${chunkDocs.length} chunks)`);
   }
 
-  console.log('\n=============================================');
-  console.log('✓ Demo workspace seeded successfully:');
-  console.log(`  Slug: ${demoSlug}`);
-  console.log(`  Widget URL: http://localhost:3000/widget/${demoSlug}`);
-  console.log(`  Dashboard URL: http://localhost:3000/dashboard/${demoSlug}`);
-  console.log('=============================================\n');
+  console.log('\n========================================');
+  console.log(' Demo Workspace Seed Complete! 🎉');
+  console.log(` Workspace Slug: ${DEMO_SLUG}`);
+  console.log(` Monthly Cap: 20 messages`);
+  console.log(' Public Widget Link:');
+  console.log(` ${process.env.NEXT_PUBLIC_APP_URL || 'https://answerdesk-ai.vercel.app'}/widget/${DEMO_SLUG}`);
+  console.log('========================================\n');
 
   await mongoose.disconnect();
-  process.exit(0);
 }
 
-runSeed().catch((err) => {
-  console.error('Fatal seed error:', err?.message || err);
-  process.exit(1);
-});
+if (require.main === module || process.argv[1]?.includes('seed-demo')) {
+  seedDemoWorkspace().catch((err) => {
+    console.error('Fatal error in seedDemoWorkspace:', err);
+    process.exit(1);
+  });
+}
+
+export { seedDemoWorkspace };

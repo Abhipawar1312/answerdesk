@@ -211,30 +211,56 @@ export async function POST(req: Request) {
     );
 
     const model = googleAI(CHAT_CONFIG.model);
-    const result = streamText({
-      model,
-      system: systemPrompt,
-      prompt: userPrompt,
-      maxOutputTokens: 500,
-    });
 
     const stream = new ReadableStream({
       async start(controller) {
         let fullAssistantText = '';
+        let attempt = 0;
 
-        try {
-          for await (const delta of result.textStream) {
-            fullAssistantText += delta;
+        while (true) {
+          try {
+            const result = streamText({
+              model,
+              system: systemPrompt,
+              prompt: userPrompt,
+              maxOutputTokens: 500,
+            });
+
+            for await (const delta of result.textStream) {
+              fullAssistantText += delta;
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: 'text-delta',
+                    delta,
+                  })}\n\n`
+                )
+              );
+            }
+            break;
+          } catch (streamErr: unknown) {
+            const classified = classifyAIError(streamErr, 'chat-stream-test');
+            // Retry ONCE with a short delay if failed before emitting any chunks
+            if (attempt === 0 && fullAssistantText === '' && classified.isRateLimit) {
+              attempt++;
+              await new Promise((resolve) => setTimeout(resolve, 500));
+              continue;
+            }
+
             controller.enqueue(
               encoder.encode(
                 `data: ${JSON.stringify({
-                  type: 'text-delta',
-                  delta,
+                  type: 'error',
+                  error: classified.friendlyMessage,
                 })}\n\n`
               )
             );
+            controller.close();
+            return;
           }
+        }
 
+        try {
           // Safety check: ensure answer does not repeat or leak system prompt text
           let finalAssistantContent = fullAssistantText;
           if (detectSystemPromptLeak(fullAssistantText)) {
@@ -264,19 +290,22 @@ export async function POST(req: Request) {
             )
           );
 
-          // Persist assistant message with used citations to MongoDB
-          await createWorkspaceMessage(workspace._id, {
-            conversationId: conv!._id,
-            role: 'assistant',
-            content: cleanAnswerText(finalAssistantContent),
-            citations: usedCitations,
-            isUnanswered: false,
-          });
+          // Persist assistant message with used citations to MongoDB only if non-empty
+          const cleanedText = cleanAnswerText(finalAssistantContent);
+          if (cleanedText.trim().length > 0) {
+            await createWorkspaceMessage(workspace._id, {
+              conversationId: conv!._id,
+              role: 'assistant',
+              content: cleanedText,
+              citations: usedCitations,
+              isUnanswered: false,
+            });
+          }
 
           controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
           controller.close();
-        } catch (streamErr: unknown) {
-          const classified = classifyAIError(streamErr);
+        } catch (postErr: unknown) {
+          const classified = classifyAIError(postErr, 'chat-post-process');
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
@@ -302,14 +331,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            'Vector search is not ready. The Atlas search index "vector_index" is missing or still building in MongoDB Atlas. See SETUP_FOR_ME.md.',
+            'Knowledge search index is not ready yet. Please configure the search index in MongoDB Atlas as detailed in SETUP_FOR_ME.md.',
           isVectorIndexMissing: true,
         },
         { status: 503 }
       );
     }
 
-    const classified = classifyAIError(err);
+    const classified = classifyAIError(err, 'chat-route-test');
     return NextResponse.json({ error: classified.friendlyMessage }, { status: 500 });
   }
 }

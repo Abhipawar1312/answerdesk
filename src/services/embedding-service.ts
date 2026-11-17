@@ -1,7 +1,7 @@
 import 'server-only';
-import mongoose from 'mongoose';
 import { embed, embedMany, APICallError, NoSuchModelError } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { connectDB } from '@/lib/db/mongoose';
 import { env } from '@/lib/env';
 import { EMBEDDING_CONFIG, INGESTION_LIMITS } from '@/lib/constants';
 import { GlobalTokenUsage } from '@/models/GlobalTokenUsage';
@@ -43,18 +43,74 @@ export interface ClassifiedAIError {
   isRateLimit: boolean;
 }
 
+function extractErrorIdentifier(err: unknown): { name: string; code: string } {
+  if (!err || typeof err !== 'object') {
+    return { name: 'UnknownError', code: 'UNKNOWN' };
+  }
+  const e = err as { name?: string; code?: string; cause?: unknown };
+  const name = String(e.name || 'Error');
+  let code = String(e.code || '');
+  if (!code && e.cause && typeof e.cause === 'object') {
+    code = String((e.cause as { code?: string }).code || '');
+  }
+  return { name, code: code || 'UNKNOWN' };
+}
+
+function isNetworkOrTimeout(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; code?: string; message?: string; cause?: unknown };
+  const name = String(e.name || '');
+  const code = String(e.code || '');
+  const msg = String(e.message || '').toLowerCase();
+
+  if (
+    name === 'AbortError' ||
+    name === 'TimeoutError' ||
+    code === 'ECONNRESET' ||
+    code === 'ETIMEDOUT' ||
+    code === 'UND_ERR_CONNECT_TIMEOUT' ||
+    code === 'ENOTFOUND' ||
+    code === 'EAI_AGAIN' ||
+    msg.includes('fetch failed') ||
+    msg.includes('econnreset') ||
+    msg.includes('etimedout') ||
+    msg.includes('aborterror')
+  ) {
+    return true;
+  }
+
+  if (e.cause && typeof e.cause === 'object') {
+    return isNetworkOrTimeout(e.cause);
+  }
+
+  return false;
+}
+
 /**
- * Classifies AI SDK errors strictly using typed error fields (statusCode, responseBody/data, isRetryable)
- * rather than arbitrary message text.
- * Never leaks upstream error text or stack traces to callers; maps every error to a fixed friendly message.
+ * Classifies AI SDK and network errors strictly using typed error fields (statusCode, responseBody/data, isRetryable)
+ * and network codes (fetch failed, ECONNRESET, ETIMEDOUT, AbortError).
+ * Never leaks upstream error text, prompt text, or secrets; logs only step, error name, and error code.
  */
-export function classifyAIError(err: unknown): ClassifiedAIError {
+export function classifyAIError(err: unknown, step = 'ai-operation'): ClassifiedAIError {
+  const { name, code } = extractErrorIdentifier(err);
+
+  // Network and timeout errors (fetch failed, ECONNRESET, ETIMEDOUT, AbortError) -> retryable
+  if (isNetworkOrTimeout(err)) {
+    console.error(`[AI Error]: step=${step}, name=${name}, code=${code}`);
+    return {
+      friendlyMessage: 'Something went wrong. Please try again.',
+      isDailyQuota: false,
+      isModelNotFound: false,
+      isRateLimit: true,
+    };
+  }
+
   if (APICallError.isInstance(err)) {
     const statusCode = err.statusCode;
 
     // 1. Model Not Found: HTTP 404
     if (statusCode === 404) {
-      console.error(`[AI Model Error] Status: 404, Model: ${EMBEDDING_CONFIG.model}`);
+      console.error(`[AI Error]: step=${step}, name=APICallError, code=404`);
       return {
         friendlyMessage: 'The configured AI model is currently unavailable.',
         isDailyQuota: false,
@@ -77,7 +133,7 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
         body.toLowerCase().includes('per_day');
 
       if (isDaily) {
-        console.error(`[AI Daily Quota] Status: ${statusCode}`);
+        console.error(`[AI Error]: step=${step}, name=APICallError, code=429_DAILY_QUOTA`);
         return {
           friendlyMessage: 'The daily AI quota has been reached. Please try again tomorrow.',
           isDailyQuota: true,
@@ -86,10 +142,9 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
         };
       }
 
-      console.error(`[AI Rate Limit] Status: ${statusCode}`);
+      console.error(`[AI Error]: step=${step}, name=APICallError, code=429_RATE_LIMIT`);
       return {
-        friendlyMessage:
-          'The AI embedding service is temporarily busy due to rate limits. Please try again in a few moments.',
+        friendlyMessage: 'The assistant is temporarily busy. Please try again in a few moments.',
         isDailyQuota: false,
         isModelNotFound: false,
         isRateLimit: true,
@@ -98,19 +153,18 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
 
     // 3. HTTP 503 / Service Unavailable / isRetryable
     if (statusCode === 503 || err.isRetryable) {
-      console.error(`[AI Service Unavailable] Status: ${statusCode || 503}`);
+      console.error(`[AI Error]: step=${step}, name=APICallError, code=${statusCode || 503}`);
       return {
-        friendlyMessage:
-          'The AI embedding service is temporarily unavailable. Please try again shortly.',
+        friendlyMessage: 'The assistant is temporarily unavailable. Please try again shortly.',
         isDailyQuota: false,
         isModelNotFound: false,
         isRateLimit: true,
       };
     }
 
-    console.error(`[AI API Error] Status: ${statusCode || 'unknown'}`);
+    console.error(`[AI Error]: step=${step}, name=APICallError, code=${statusCode || 'UNKNOWN'}`);
     return {
-      friendlyMessage: 'An unexpected error occurred while communicating with the AI service.',
+      friendlyMessage: 'Something went wrong while processing your request. Please try again.',
       isDailyQuota: false,
       isModelNotFound: false,
       isRateLimit: false,
@@ -118,7 +172,7 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
   }
 
   if (NoSuchModelError.isInstance(err)) {
-    console.error(`[AI Model Error] Status: 404, Model: ${err.modelId || EMBEDDING_CONFIG.model}`);
+    console.error(`[AI Error]: step=${step}, name=NoSuchModelError, code=404`);
     return {
       friendlyMessage: 'The configured AI model is currently unavailable.',
       isDailyQuota: false,
@@ -127,9 +181,9 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
     };
   }
 
-  console.error('[AI Unexpected Non-API Error]');
+  console.error(`[AI Error]: step=${step}, name=${name}, code=${code}`);
   return {
-    friendlyMessage: 'An unexpected error occurred while generating embeddings.',
+    friendlyMessage: 'Something went wrong. Please try again.',
     isDailyQuota: false,
     isModelNotFound: false,
     isRateLimit: false,
@@ -138,14 +192,13 @@ export function classifyAIError(err: unknown): ClassifiedAIError {
 
 /**
  * Checks and records global token consumption against the shared 30K TPM budget.
- * Throws immediately if the database is not connected.
+ * Connects to database if needed and never throws simply because readyState is not yet 1.
  * Refuses if recent token consumption exceeds 60% of 30,000 (18,000 tokens).
  * Writes the usage entry BEFORE the batch API call so parallel requests see it immediately.
  */
 export async function checkAndRecordGlobalTokenBudget(estimatedTokens: number): Promise<void> {
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error('Database connection is required to evaluate global token budget.');
-  }
+  // Await cached connectDB() to ensure database connection is established
+  await connectDB();
 
   const windowStart = new Date(Date.now() - 60 * 1000);
   const result = await GlobalTokenUsage.aggregate([
@@ -159,7 +212,7 @@ export async function checkAndRecordGlobalTokenBudget(estimatedTokens: number): 
 
   if (currentUsage + estimatedTokens > threshold) {
     throw new EmbeddingServiceError(
-      'The AI indexing service is temporarily busy due to high demand. Please try again in a minute.',
+      'The assistant is temporarily busy due to high demand. Please try again in a minute.',
       true
     );
   }
@@ -191,7 +244,7 @@ async function executeWithRetry<T>(batchTokens: number, fn: () => Promise<T>): P
         throw err;
       }
 
-      const classified = classifyAIError(err);
+      const classified = classifyAIError(err, 'document-embedding');
 
       // Daily quota & model not found must FAIL FAST - never retried
       if (classified.isDailyQuota || classified.isModelNotFound) {
@@ -217,7 +270,7 @@ async function executeWithRetry<T>(batchTokens: number, fn: () => Promise<T>): P
   }
 
   throw new EmbeddingServiceError(
-    'The AI embedding service is temporarily busy due to rate limits. Please try again in a few moments.',
+    'The assistant is temporarily busy. Please try again in a few moments.',
     true
   );
 }
@@ -274,35 +327,63 @@ export async function embedDocumentChunks(texts: string[]): Promise<number[][]> 
 /**
  * Generates a 768-dimensional embedding for a single search/chat question.
  * Uses taskType: 'RETRIEVAL_QUERY' optimized for search queries.
+ * Retries ONCE with a short 500ms delay on network/timeout/rate-limit failures.
  */
 export async function embedQuery(queryText: string): Promise<number[]> {
   const trimmed = queryText.trim();
   if (!trimmed) {
-    throw new EmbeddingServiceError('Query text cannot be empty for embedding.');
+    throw new EmbeddingServiceError('Query text cannot be empty.');
   }
 
   const model = googleAI.textEmbeddingModel(EMBEDDING_CONFIG.model);
   const queryTokens = estimateTokensConservative(trimmed);
 
-  const result = await executeWithRetry(queryTokens, async () => {
-    return await embed({
-      model,
-      value: trimmed,
-      dimensions: EMBEDDING_CONFIG.dimensions, // 768
-      maxRetries: 0, // Disable internal SDK retries
-      providerOptions: {
-        google: {
-          taskType: 'RETRIEVAL_QUERY',
+  let attempt = 0;
+  while (true) {
+    try {
+      if (queryTokens > 0) {
+        await checkAndRecordGlobalTokenBudget(queryTokens);
+      }
+
+      const result = await embed({
+        model,
+        value: trimmed,
+        dimensions: EMBEDDING_CONFIG.dimensions, // 768
+        maxRetries: 0, // Disable internal SDK retries
+        providerOptions: {
+          google: {
+            taskType: 'RETRIEVAL_QUERY',
+          },
         },
-      },
-    });
-  });
+      });
 
-  if (result.embedding.length !== EMBEDDING_CONFIG.dimensions) {
-    throw new EmbeddingServiceError(
-      `Invalid query embedding dimension: expected ${EMBEDDING_CONFIG.dimensions}, received ${result.embedding.length}`
-    );
+      if (result.embedding.length !== EMBEDDING_CONFIG.dimensions) {
+        throw new EmbeddingServiceError(
+          `Invalid query embedding dimension: expected ${EMBEDDING_CONFIG.dimensions}, received ${result.embedding.length}`
+        );
+      }
+
+      return result.embedding;
+    } catch (err: unknown) {
+      if (err instanceof EmbeddingServiceError && !err.isRateLimit) {
+        throw err;
+      }
+
+      const classified = classifyAIError(err, 'query-embedding');
+
+      // Retry ONCE with a short delay (500ms) for retryable errors (rate limits, timeouts, network)
+      if (attempt === 0 && classified.isRateLimit) {
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        continue;
+      }
+
+      throw new EmbeddingServiceError(
+        classified.friendlyMessage,
+        classified.isRateLimit,
+        classified.isDailyQuota,
+        classified.isModelNotFound
+      );
+    }
   }
-
-  return result.embedding;
 }

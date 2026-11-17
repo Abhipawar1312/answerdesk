@@ -5,8 +5,18 @@ import { Code2, Copy, Check, ExternalLink, Smartphone, AlertTriangle } from 'luc
 import { Button } from '@/components/ui/button';
 
 const emptySubscribe = () => () => {};
-const getClientOrigin = () => (typeof window !== 'undefined' ? window.location.origin : 'https://answerdesk.app');
-const getServerOrigin = () => 'https://answerdesk.app';
+const getClientOrigin = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  return typeof window !== 'undefined' ? window.location.origin : 'https://answerdesk-ai.vercel.app';
+};
+const getServerOrigin = () => {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  return 'https://answerdesk-ai.vercel.app';
+};
 
 interface WidgetPreviewClientProps {
   workspaceSlug: string;

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Send, Bot, User, AlertCircle, FileText, Sparkles, Loader2, ArrowRight, Plus } from 'lucide-react';
+import { Send, Bot, User, AlertCircle, FileText, Sparkles, Loader2, ArrowRight, Plus, RotateCcw } from 'lucide-react';
 import { useWorkspaceUsage } from '@/components/dashboard/dashboard-shell';
 import { cleanAnswerText } from '@/services/citation-resolver';
 
@@ -21,6 +21,8 @@ interface ChatMessage {
   citations?: Citation[];
   isUnanswered?: boolean;
   topScore?: number;
+  isError?: boolean;
+  retryPrompt?: string;
 }
 
 export function TestChatClient({
@@ -44,14 +46,27 @@ export function TestChatClient({
 
   const usage = useWorkspaceUsage();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const retryPromptRef = useRef<string>('');
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleRetry = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const prompt = e.currentTarget.getAttribute('data-prompt');
+    if (!prompt || isLoading) return;
+    retryPromptRef.current = prompt;
+    const form = document.querySelector('form');
+    if (form) {
+      form.requestSubmit();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = input.trim();
+    const promptToSend = retryPromptRef.current || input;
+    retryPromptRef.current = '';
+    const trimmed = promptToSend.trim();
     if (!trimmed || isLoading) return;
 
     if (hourlyCount >= 20) {
@@ -66,12 +81,29 @@ export function TestChatClient({
     const userMessageId = `user_${Date.now()}`;
     const assistantMessageId = `asst_${Date.now()}`;
 
-    // Append user message immediately
+    // Append user message and placeholder assistant message immediately
     setMessages((prev) => [
       ...prev,
       { id: userMessageId, role: 'user', content: trimmed },
+      { id: assistantMessageId, role: 'assistant', content: '' },
     ]);
     setIsLoading(true);
+
+    const markAssistantError = (errMsg?: string) => {
+      const fallbackText = 'Something went wrong. Please try again.';
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId
+            ? {
+                ...m,
+                content: errMsg || fallbackText,
+                isError: true,
+                retryPrompt: trimmed,
+              }
+            : m
+        )
+      );
+    };
 
     try {
       const res = await fetch('/api/chat/test', {
@@ -89,13 +121,13 @@ export function TestChatClient({
         if (res.status === 503 && errorData.isVectorIndexMissing) {
           setVectorIndexMissing(true);
         }
-        throw new Error(errorData.error || 'Failed to send message.');
+        markAssistantError(errorData.error || 'Something went wrong. Please try again.');
+        return;
       }
 
-      setHourlyCount((prev) => prev + 1);
-
       if (!res.body) {
-        throw new Error('Readable stream not supported.');
+        markAssistantError('Something went wrong. Please try again.');
+        return;
       }
 
       const reader = res.body.getReader();
@@ -104,16 +136,7 @@ export function TestChatClient({
       let receivedCitations: Citation[] = [];
       let isUnansweredQuery = false;
       let highestScore = 0;
-
-      // Add placeholder assistant message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: '',
-        },
-      ]);
+      let streamSucceeded = false;
 
       let buffer = '';
 
@@ -131,6 +154,7 @@ export function TestChatClient({
           const dataStr = trimmedLine.slice(6).trim();
 
           if (dataStr === '[DONE]') {
+            streamSucceeded = true;
             break;
           }
 
@@ -170,18 +194,23 @@ export function TestChatClient({
                 )
               );
             } else if (parsed.type === 'error') {
-              setErrorMessage(parsed.error);
+              markAssistantError(parsed.error || 'Something went wrong. Please try again.');
+              return;
             }
           } catch {
             // Ignore partial JSON parses in chunk boundaries
           }
         }
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setErrorMessage(msg);
-      // Remove empty assistant placeholder if failed before receiving tokens
-      setMessages((prev) => prev.filter((m) => m.id !== assistantMessageId || m.content.length > 0));
+
+      // If stream ended without error and with content, count towards hourly limit
+      if (streamSucceeded || assistantText.trim().length > 0) {
+        setHourlyCount((prev) => prev + 1);
+      } else {
+        markAssistantError('Something went wrong. Please try again.');
+      }
+    } catch {
+      markAssistantError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
       usage?.refreshUsage?.();
@@ -234,16 +263,15 @@ export function TestChatClient({
           <span>Test chats are not saved in this view</span>
         </div>
 
-        {/* Vector Index Missing Notice */}
+        {/* Search Index Missing Notice */}
         {vectorIndexMissing && (
           <div className="rounded border border-border bg-card p-4 space-y-2">
             <div className="flex items-center gap-2 text-foreground font-medium text-xs">
               <AlertCircle className="h-4 w-4 text-amber-500" />
-              <span>Search Index Setup Required</span>
+              <span>Search Setup Required</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Atlas vector search is not active yet. Please create the search index named{' '}
-              <code className="font-mono text-foreground">vector_index</code> in MongoDB Atlas as detailed in{' '}
+              Knowledge search index is not ready yet. Please configure the search index in MongoDB Atlas as detailed in{' '}
               <code className="font-mono text-foreground">SETUP_FOR_ME.md</code>.
             </p>
           </div>
@@ -307,12 +335,30 @@ export function TestChatClient({
                       className={`rounded px-4 py-2.5 text-xs leading-relaxed ${
                         m.role === 'user'
                           ? 'bg-foreground text-background font-medium'
+                          : m.isError
+                          ? 'border border-destructive/30 bg-destructive/5 text-foreground'
                           : 'border border-border bg-muted/20 text-foreground'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">
-                        {m.role === 'assistant' ? cleanAnswerText(m.content) : m.content}
+                        {m.role === 'assistant'
+                          ? cleanAnswerText(m.content) || (m.isError ? 'Something went wrong. Please try again.' : '')
+                          : m.content}
                       </p>
+                      {m.isError && (
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={handleRetry}
+                            data-prompt={m.retryPrompt}
+                            disabled={isLoading || hourlyCount >= 20}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            <span>Retry</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Fallback Unanswered Tag */}
