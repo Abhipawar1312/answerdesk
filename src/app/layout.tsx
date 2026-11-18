@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://answerdesk-ai.vercel.app'),
   title: 'AnswerDesk | Multi-tenant AI Support Chatbot SaaS',
   description: 'AI-powered customer support chatbot strictly grounded in your company knowledge base.',
   icons: {

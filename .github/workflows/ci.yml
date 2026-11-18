@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Concurrency: cancel in-flight jobs on the same PR when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Build & Test Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Safe placeholder environment variables for Next.js build validation.
+    # No real production secrets are exposed or required in CI.
+    env:
+      CI: 'true'
+      AUTH_SECRET: 'ci-mock-auth-secret-for-build-validation-32-chars-min'
+      AUTH_GOOGLE_ID: 'ci-mock-google-id'
+      AUTH_GOOGLE_SECRET: 'ci-mock-google-secret'
+      MONGODB_URI: 'mongodb://127.0.0.1:27017/answerdesk_ci'
+      NEXT_PUBLIC_APP_URL: 'https://answerdesk-ai.vercel.app'
+      GEMINI_API_KEY: 'ci-mock-gemini-api-key'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check (TypeScript)
+        run: npx tsc --noEmit
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Run unit & integration tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
