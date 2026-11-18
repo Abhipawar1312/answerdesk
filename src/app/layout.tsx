@@ -17,6 +17,34 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'AnswerDesk | Multi-tenant AI Support Chatbot SaaS',
   description: 'AI-powered customer support chatbot strictly grounded in your company knowledge base.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-icon.png',
+  },
+  openGraph: {
+    title: 'AnswerDesk | Multi-tenant AI Support Chatbot SaaS',
+    description: 'AI-powered customer support chatbot strictly grounded in your company knowledge base.',
+    url: 'https://answerdesk-ai.vercel.app',
+    siteName: 'AnswerDesk',
+    images: [
+      {
+        url: '/preview.png',
+        width: 1200,
+        height: 630,
+        alt: 'AnswerDesk Preview',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AnswerDesk | Multi-tenant AI Support Chatbot SaaS',
+    description: 'AI-powered customer support chatbot strictly grounded in your company knowledge base.',
+    images: ['/preview.png'],
+  },
 };
 
 export default function RootLayout({

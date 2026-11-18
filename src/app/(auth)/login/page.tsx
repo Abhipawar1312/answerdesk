@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Image from 'next/image';
 import { signIn, auth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -22,10 +23,15 @@ export default async function LoginPage() {
       </Suspense>
       <div className="w-full max-w-sm rounded border border-border bg-card p-6 shadow-xs">
         <div className="mb-6">
-          <Link href="/" className="inline-flex items-center gap-2 mb-4">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-[11px] font-bold text-background">
-              A
-            </span>
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
+            <Image
+              src="/icon.svg"
+              alt="AnswerDesk Logo"
+              width={24}
+              height={24}
+              className="rounded-sm"
+              priority
+            />
             <span className="text-sm font-semibold tracking-tight text-foreground">
               AnswerDesk
             </span>

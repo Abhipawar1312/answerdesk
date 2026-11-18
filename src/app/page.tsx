@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Image from 'next/image';
 import { Header } from '@/components/common/header';
 import { MarketingHero } from '@/components/marketing/hero';
 import Link from 'next/link';
@@ -14,10 +15,14 @@ function HeaderSkeleton() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-[11px] font-bold text-background">
-            A
-          </span>
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/icon.svg"
+            alt="AnswerDesk Logo"
+            width={22}
+            height={22}
+            className="rounded-sm"
+          />
           <span className="text-sm font-semibold tracking-tight text-foreground">
             AnswerDesk
           </span>

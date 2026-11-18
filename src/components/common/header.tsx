@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { connection } from 'next/server';
 import { ThemeToggle } from '@/components/common/theme-toggle';
 import { buttonVariants } from '@/components/ui/button';
@@ -14,10 +15,15 @@ export async function Header() {
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-xs">
       <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded bg-foreground text-[11px] font-bold text-background">
-              A
-            </span>
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/icon.svg"
+              alt="AnswerDesk Logo"
+              width={22}
+              height={22}
+              className="rounded-sm"
+              priority
+            />
             <span className="text-sm font-semibold tracking-tight text-foreground">
               AnswerDesk
             </span>
