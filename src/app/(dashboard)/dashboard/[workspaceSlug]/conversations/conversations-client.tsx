@@ -52,37 +52,44 @@ export function ConversationsClient({
   return (
     <div className="space-y-6">
       {/* Header and Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Conversations</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Review incoming visitor interactions and identify knowledge gaps.
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <MessageSquare className="h-4 w-4" />
+            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              Conversations
+            </h1>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5 ml-10">
+            Audit customer chats, monitor automated assistant responses, and flag unresolved questions.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <div className="inline-flex rounded-xl border border-border/80 p-1 bg-muted/30 shadow-2xs">
             <button
               type="button"
               onClick={() => setFilter('all')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                 filter === 'all'
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-xs border border-border/60'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              All
+              All Inquiries
             </button>
             <button
               type="button"
               onClick={() => setFilter('unanswered')}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 ${
                 filter === 'unanswered'
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-card text-foreground shadow-xs border border-border/60'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <AlertCircle className="w-3 h-3 text-muted-foreground" />
+              <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
               Unanswered
             </button>
           </div>
@@ -92,7 +99,7 @@ export function ConversationsClient({
             size="sm"
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="h-8 px-2.5 text-xs text-muted-foreground"
+            className="h-8.5 px-3 text-xs text-muted-foreground rounded-xl border-border/80 shadow-2xs hover:text-foreground"
             aria-label="Refresh conversations"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? 'animate-spin' : ''}`} />
@@ -106,24 +113,24 @@ export function ConversationsClient({
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-20 rounded-xl border border-border bg-card/50 animate-pulse"
+              className="h-20 rounded-2xl border border-border/70 bg-card/50 animate-pulse"
             />
           ))}
         </div>
       ) : conversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed border-border rounded-xl bg-card/30">
-          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-3">
-            <MessageSquare className="w-5 h-5" />
+        <div className="flex flex-col items-center justify-center py-16 px-6 text-center border-2 border-dashed border-border/70 rounded-2xl bg-card/40">
+          <div className="w-12 h-12 rounded-2xl bg-muted/60 border border-border/80 flex items-center justify-center text-muted-foreground mb-3.5">
+            <MessageSquare className="w-6 h-6" />
           </div>
-          <h2 className="text-sm font-medium text-foreground">No conversations found</h2>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          <h2 className="text-sm font-semibold text-foreground">No conversations found</h2>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm leading-relaxed">
             {filter === 'unanswered'
-              ? 'Great job! There are no unanswered visitor questions.'
-              : 'Embed the widget on your site or start a conversation using the widget preview.'}
+              ? 'Great job! There are currently zero unanswered visitor questions.'
+              : 'Embed the widget on your site or run a simulated session in Test Chat to see visitor logs here.'}
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+        <div className="divide-y divide-border/60 rounded-2xl border border-border/70 bg-card overflow-hidden shadow-xs">
           {conversations.map((conv) => {
             const formattedDate = formatDateTime(conv.lastMessageAt);
 
@@ -131,37 +138,45 @@ export function ConversationsClient({
               <Link
                 key={conv._id}
                 href={`/dashboard/${workspaceSlug}/conversations/${conv._id}`}
-                className="flex items-center justify-between p-4 hover:bg-muted/40 transition-colors group"
+                className="flex items-center justify-between p-4.5 hover:bg-muted/30 transition-colors group"
               >
                 <div className="min-w-0 flex-1 pr-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-foreground truncate">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs font-semibold text-foreground truncate">
                       {conv.isTest ? 'Test Chat' : `Visitor ${conv.visitorId.slice(0, 12)}`}
                     </span>
 
+                    {conv.isTest && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted/60 text-muted-foreground border border-border/60">
+                        Sandbox
+                      </span>
+                    )}
+
                     {conv.hasUnanswered && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-foreground border border-border">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
                         <AlertCircle className="w-2.5 h-2.5" />
                         Unanswered
                       </span>
                     )}
 
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
+                    <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1 ml-auto sm:ml-0">
+                      <Clock className="w-3 h-3" />
                       {formattedDate}
                     </span>
                   </div>
 
-                  <p className="text-xs text-muted-foreground truncate">
-                    {conv.lastMessageSnippet || 'No messages yet'}
+                  <p className="text-xs text-muted-foreground truncate leading-normal">
+                    {conv.lastMessageSnippet || 'No messages recorded'}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-3.5 shrink-0">
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-muted/40 border border-border/40 text-muted-foreground">
                     {conv.messageCount} {conv.messageCount === 1 ? 'msg' : 'msgs'}
                   </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform group-hover:translate-x-0.5" />
+                  <div className="h-7 w-7 rounded-lg border border-border/60 bg-muted/20 flex items-center justify-center text-muted-foreground group-hover:text-foreground group-hover:border-border transition-colors">
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
                 </div>
               </Link>
             );

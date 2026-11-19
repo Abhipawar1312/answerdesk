@@ -49,38 +49,42 @@ async function ConversationDetailData({
   const formattedStarted = formatDateTime(conversation.startedAt);
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="max-w-4xl mx-auto w-full space-y-6">
       {/* Back Link & Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-border">
+      <div className="flex items-center justify-between pb-4 border-b border-border/60">
         <div className="flex items-center gap-3">
           <Link href={`/dashboard/${workspaceSlug}/conversations`}>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8.5 w-8.5 rounded-xl border-border/80 shadow-2xs text-muted-foreground hover:text-foreground"
+            >
               <ArrowLeft className="w-4 h-4" />
             </Button>
           </Link>
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
-              {conversation.isTest ? 'Test Chat' : `Visitor ${conversation.visitorId.slice(0, 14)}`}
+              {conversation.isTest ? 'Test Chat Session' : `Visitor ${conversation.visitorId.slice(0, 14)}`}
               {conversation.isTest && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
-                  Test
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border/60">
+                  Sandbox
                 </span>
               )}
             </h1>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
-              <Clock className="w-3 h-3" />
+              <Clock className="w-3.5 h-3.5" />
               Started on {formattedStarted}
             </p>
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs font-mono text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-lg border border-border/50">
           {messages.length} {messages.length === 1 ? 'message' : 'messages'}
         </div>
       </div>
 
       {/* Message Timeline */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
           const msgTime = formatTime(msg.createdAt);
@@ -88,25 +92,27 @@ async function ConversationDetailData({
           return (
             <div
               key={msg._id.toString()}
-              className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex gap-3.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
             >
               <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs ${
+                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 text-xs shadow-2xs ${
                   isUser
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground border border-border'
+                    ? 'bg-primary text-primary-foreground font-semibold'
+                    : 'bg-card text-foreground border border-border/80'
                 }`}
               >
-                {isUser ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
               </div>
 
-              <div className={`max-w-[80%] space-y-1.5 ${isUser ? 'items-end' : 'items-start'}`}>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground px-1">
-                  <span>{isUser ? (conversation.isTest ? 'Test' : 'Visitor') : 'AnswerDesk AI'}</span>
-                  <span>•</span>
-                  <span>{msgTime}</span>
+              <div className={`max-w-[82%] space-y-1.5 ${isUser ? 'items-end' : 'items-start'}`}>
+                <div className={`flex items-center gap-2 text-[11px] text-muted-foreground px-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
+                  <span className="font-medium text-foreground">
+                    {isUser ? (conversation.isTest ? 'Test Operator' : 'Visitor') : 'AnswerDesk AI'}
+                  </span>
+                  <span>&bull;</span>
+                  <span className="font-mono text-[10px]">{msgTime}</span>
                   {msg.isUnanswered && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-muted text-foreground border border-border">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       <AlertCircle className="w-2.5 h-2.5" />
                       Unanswered
                     </span>
@@ -114,10 +120,10 @@ async function ConversationDetailData({
                 </div>
 
                 <div
-                  className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
+                  className={`p-4 rounded-2xl text-xs leading-relaxed shadow-xs ${
                     isUser
-                      ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                      : 'bg-card text-foreground border border-border rounded-tl-sm'
+                      ? 'bg-primary text-primary-foreground rounded-tr-xs'
+                      : 'bg-card text-foreground border border-border/80 rounded-tl-xs'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{isUser ? msg.content : cleanAnswerText(msg.content)}</p>
@@ -125,21 +131,21 @@ async function ConversationDetailData({
 
                 {/* Citations / Sources */}
                 {msg.citations && msg.citations.length > 0 && (
-                  <div className="space-y-1 pt-1">
-                    <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                      <Bookmark className="w-2.5 h-2.5" />
-                      Sources referenced:
+                  <div className="space-y-1.5 pt-1">
+                    <p className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+                      <Bookmark className="w-3 h-3 text-primary" />
+                      Sources referenced ({msg.citations.length}):
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {msg.citations.map((cite, idx) => (
                         <div
                           key={idx}
-                          className="px-2 py-1 rounded-md text-[10px] bg-muted/60 border border-border text-foreground max-w-sm"
+                          className="p-2.5 rounded-xl text-xs bg-muted/30 border border-border/70 text-foreground max-w-sm shadow-2xs space-y-1"
                         >
-                          <span className="font-semibold">{cite.sourceTitle}</span>
+                          <span className="font-semibold block text-primary text-[11px]">{cite.sourceTitle}</span>
                           {cite.textSnippet && (
-                            <p className="text-[9px] text-muted-foreground mt-0.5 line-clamp-2">
-                              {cite.textSnippet}
+                            <p className="text-[10px] font-mono text-muted-foreground line-clamp-2 leading-snug">
+                              &ldquo;{cite.textSnippet}&rdquo;
                             </p>
                           )}
                         </div>

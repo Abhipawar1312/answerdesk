@@ -121,10 +121,10 @@ export function DocumentUploadDropzone({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`relative flex flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center cursor-pointer transition-colors ${
+          className={`relative group flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200 ${
             isDragging
-              ? 'border-foreground bg-muted/60'
-              : 'border-border bg-card/60 hover:bg-muted/30'
+              ? 'border-primary bg-primary/5 scale-[0.99]'
+              : 'border-border/80 bg-muted/10 hover:bg-muted/30 hover:border-border'
           }`}
           role="button"
           tabIndex={0}
@@ -138,29 +138,31 @@ export function DocumentUploadDropzone({
             className="hidden"
           />
 
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-muted/40 mb-3">
-            <UploadCloud className="h-5 w-5 text-muted-foreground" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border/80 bg-card group-hover:scale-105 group-hover:border-primary/40 group-hover:text-primary transition-all shadow-2xs mb-3 text-muted-foreground">
+            <UploadCloud className="h-6 w-6" />
           </div>
 
           <p className="text-xs font-semibold text-foreground">
-            Click to upload or drag and drop
+            Click to choose a file or drag and drop
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            PDF, TXT, or MD documents (up to {maxFileSizeMB}MB)
+            Supports <span className="font-mono text-[11px] text-foreground font-medium">.PDF</span>, <span className="font-mono text-[11px] text-foreground font-medium">.TXT</span>, or <span className="font-mono text-[11px] text-foreground font-medium">.MD</span> documents up to {maxFileSizeMB}MB
           </p>
-          <p className="mt-2 text-[11px] text-muted-foreground/80 max-w-sm">
-            Note: PDFs in Hindi or Marathi may not be read correctly due to font encoding. We recommend uploading .txt or .md files instead.
+          <p className="mt-2.5 text-[11px] text-muted-foreground/70 max-w-md bg-muted/40 px-3 py-1.5 rounded-lg border border-border/50">
+            Tip: PDFs in Hindi or Marathi with non-standard font encodings may extract cleanly as UTF-8 .txt or .md files.
           </p>
         </div>
       ) : (
-        <form onSubmit={handleUpload} className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <form onSubmit={handleUpload} className="rounded-xl border border-border/80 bg-muted/10 p-4.5 space-y-4 shadow-2xs">
           <div className="flex items-center justify-between border-b border-border/60 pb-3">
-            <div className="flex items-center gap-2.5">
-              <FileText className="h-5 w-5 text-foreground shrink-0" />
-              <div>
-                <p className="text-xs font-medium text-foreground truncate max-w-sm">{file.name}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {(file.size / 1024).toFixed(1)} KB • {file.name.slice(file.name.lastIndexOf('.')).toUpperCase()}
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-foreground truncate max-w-sm">{file.name}</p>
+                <p className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                  {(file.size / 1024).toFixed(1)} KB &bull; {file.name.slice(file.name.lastIndexOf('.')).toUpperCase()}
                 </p>
               </div>
             </div>
@@ -170,25 +172,25 @@ export function DocumentUploadDropzone({
               size="icon"
               onClick={handleClear}
               disabled={isUploading}
-              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
               aria-label="Remove selected file"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium text-muted-foreground">Document Title</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Document Title</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Employee Handbook"
+              placeholder="e.g. Employee Handbook & FAQ"
               disabled={isUploading}
-              className="text-xs h-8"
+              className="text-xs h-9 bg-background"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex items-center justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="outline"
@@ -203,7 +205,7 @@ export function DocumentUploadDropzone({
               type="submit"
               size="sm"
               disabled={isUploading}
-              className="text-xs h-8 min-w-28"
+              className="text-xs h-8 min-w-32 font-medium"
             >
               {isUploading ? (
                 <>
@@ -220,17 +222,17 @@ export function DocumentUploadDropzone({
 
       {/* Success Notification */}
       {successMessage && (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2.5 text-xs text-foreground">
-          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-          <span>{successMessage}</span>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-500">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span className="font-medium text-foreground">{successMessage}</span>
         </div>
       )}
 
       {/* Error Notification */}
       {errorMessage && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+        <div className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-500">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{errorMessage}</span>
+          <span className="font-medium">{errorMessage}</span>
         </div>
       )}
     </div>

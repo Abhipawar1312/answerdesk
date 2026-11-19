@@ -52,13 +52,13 @@ export function DocumentRowActions({ workspaceSlug, documentId, canRetry = false
   if (isConfirmingDelete) {
     return (
       <div className="flex items-center justify-end gap-1.5 font-sans">
-        <span className="text-[11px] text-muted-foreground">Delete entry?</span>
+        <span className="text-[11px] text-muted-foreground mr-1">Delete entry?</span>
         <Button
           variant="destructive"
           size="sm"
           disabled={isDeleting}
           onClick={handleDelete}
-          className="h-6 px-2 text-[11px]"
+          className="h-6.5 px-2.5 text-[11px] rounded-lg shadow-2xs font-medium"
         >
           {isDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Yes, delete'}
         </Button>
@@ -70,7 +70,7 @@ export function DocumentRowActions({ workspaceSlug, documentId, canRetry = false
             setIsConfirmingDelete(false);
             setActionError(null);
           }}
-          className="h-6 px-2 text-[11px] border-border"
+          className="h-6.5 px-2 text-[11px] rounded-lg border-border/80"
         >
           Cancel
         </Button>
@@ -80,14 +80,14 @@ export function DocumentRowActions({ workspaceSlug, documentId, canRetry = false
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <div className="flex items-center justify-end gap-1">
+      <div className="flex items-center justify-end gap-1.5">
         {canRetry && (
           <Button
             variant="outline"
             size="sm"
             disabled={isRetrying || isDeleting}
             onClick={handleRetry}
-            className="h-7 px-2 text-[11px] gap-1 text-foreground border-border hover:bg-muted/50"
+            className="h-7 px-2.5 text-[11px] gap-1.5 text-foreground rounded-lg border-border/80 hover:bg-muted/60 transition-colors shadow-2xs"
             title="Retry indexing"
           >
             {isRetrying ? (
@@ -107,7 +107,7 @@ export function DocumentRowActions({ workspaceSlug, documentId, canRetry = false
             setActionError(null);
             setIsConfirmingDelete(true);
           }}
-          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+          className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
           aria-label="Delete document"
           title="Delete entry"
         >
@@ -120,7 +120,7 @@ export function DocumentRowActions({ workspaceSlug, documentId, canRetry = false
       </div>
 
       {actionError && (
-        <span className="text-[11px] text-destructive font-sans max-w-[200px] truncate" title={actionError}>
+        <span className="text-[11px] text-rose-500 font-sans max-w-[200px] truncate" title={actionError}>
           {actionError}
         </span>
       )}

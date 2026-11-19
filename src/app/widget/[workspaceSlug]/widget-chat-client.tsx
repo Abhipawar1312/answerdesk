@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, X, ExternalLink, Bot, User, Sparkles, RotateCcw } from 'lucide-react';
+import { Send, X, ExternalLink, Bot, User, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cleanAnswerText } from '@/services/citation-resolver';
@@ -209,15 +209,17 @@ export function WidgetChatClient({
       {/* Header */}
       <header className="px-4 py-3 border-b border-border bg-card shrink-0">
         <div className="max-w-[760px] mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-xs">
+          <div className="flex items-center space-x-2.5">
+            <div className="relative w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 shrink-0">
               {workspaceName.charAt(0).toUpperCase()}
+              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-card" />
             </div>
             <div>
               <h1 className="text-sm font-semibold tracking-tight leading-tight">{workspaceName}</h1>
-              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-muted-foreground" />
-                Support assistant
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1 font-medium">
+                <span className="text-emerald-500 font-semibold">● Online</span>
+                <span>·</span>
+                <span>AI Support</span>
               </p>
             </div>
           </div>
@@ -242,14 +244,14 @@ export function WidgetChatClient({
       >
         <div className="max-w-[760px] mx-auto w-full space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4 space-y-3 my-auto py-12">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                <Bot className="w-5 h-5" />
+            <div className="flex flex-col items-center justify-center h-full text-center px-4 space-y-3.5 my-auto py-12">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+                <Bot className="w-6 h-6" />
               </div>
-              <div>
-                <h2 className="text-sm font-medium">How can we help you today?</h2>
-                <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
-                  Ask questions about our policies, pricing, or product documentation.
+              <div className="max-w-[280px]">
+                <h2 className="text-sm font-semibold text-foreground">How can we assist you?</h2>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Ask any question about our products, services, or policies. Answers are verified from official documents.
                 </p>
               </div>
             </div>
@@ -267,30 +269,31 @@ export function WidgetChatClient({
                   }`}
                 >
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs ${
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 text-xs shadow-2xs ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-primary text-primary-foreground font-semibold'
+                        : 'bg-card text-foreground border border-border/80'
                     }`}
                   >
-                    {msg.role === 'user' ? <User className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
+                    {msg.role === 'user' ? <User className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
                   </div>
 
                   <div
-                    className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                    className={`p-3.5 rounded-2xl text-xs leading-relaxed shadow-2xs ${
                       msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                        ? 'bg-primary text-primary-foreground rounded-tr-xs'
                         : msg.isError
-                        ? 'bg-destructive/10 text-foreground border border-destructive/20 rounded-tl-sm'
-                        : 'bg-muted/60 text-foreground border border-border/50 rounded-tl-sm'
+                        ? 'bg-rose-500/10 text-foreground border border-rose-500/20 rounded-tl-xs'
+                        : 'bg-card text-foreground border border-border/80 rounded-tl-xs'
                     }`}
                   >
                     {(msg.role === 'assistant'
                       ? cleanAnswerText(msg.content) || (msg.isError ? 'Something went wrong. Please try again.' : '')
                       : msg.content) ||
                       (msg.isStreaming && (
-                        <span className="inline-block animate-pulse text-muted-foreground">
-                          Thinking...
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground animate-pulse">
+                          <span>Thinking</span>
+                          <span className="inline-block animate-bounce">...</span>
                         </span>
                       ))}
 
@@ -301,7 +304,7 @@ export function WidgetChatClient({
                           onClick={handleRetry}
                           data-prompt={msg.retryPrompt}
                           disabled={isStreaming}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border/80 bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50 shadow-2xs"
                         >
                           <RotateCcw className="w-3 h-3" />
                           <span>Retry</span>
@@ -325,11 +328,11 @@ export function WidgetChatClient({
                               setSelectedCitation(selectedCitation === cite ? null : cite);
                             }
                           }}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-muted/80 hover:bg-muted text-muted-foreground border border-border/40 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] bg-muted/60 hover:bg-muted text-foreground border border-border/60 transition-colors shadow-2xs"
                           title={cite.textSnippet || cite.sourceTitle}
                         >
-                          <ExternalLink className="w-2.5 h-2.5" />
-                          <span className="truncate max-w-[140px]">{cite.sourceTitle}</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-primary" />
+                          <span className="truncate max-w-[140px] font-medium">{cite.sourceTitle}</span>
                         </button>
                       ))}
                     </div>
@@ -370,29 +373,32 @@ export function WidgetChatClient({
       )}
 
       {/* Input Footer */}
-      <footer className="p-3 border-t border-border bg-card shrink-0">
+      <footer className="p-3 border-t border-border/60 bg-card shrink-0">
         <div className="max-w-[760px] mx-auto w-full">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               value={input}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
-              placeholder="Type your question..."
+              placeholder="Ask a question..."
               disabled={isStreaming}
-              className="flex-1 text-xs h-9"
+              className="flex-1 text-xs h-9 bg-background rounded-xl border-border/80 shadow-2xs"
             />
             <Button
               type="submit"
               size="icon"
               disabled={isStreaming || !input.trim()}
-              className="h-9 w-9 shrink-0"
+              className="h-9 w-9 shrink-0 rounded-xl shadow-2xs"
               aria-label="Send message"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-3.5 h-3.5" />
             </Button>
           </form>
           <div className="flex justify-between items-center text-[10px] text-muted-foreground mt-2 px-1">
-            <span>Powered by AnswerDesk</span>
-            <span>Support assistant</span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Powered by <strong className="font-semibold text-foreground">AnswerDesk</strong>
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/80">Support Assistant</span>
           </div>
         </div>
       </footer>

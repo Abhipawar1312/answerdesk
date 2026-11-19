@@ -82,22 +82,27 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
 
   if (!isOpen) {
     return (
-      <div className="rounded border border-border bg-card p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-              Add Text or FAQ
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Add common questions and answers or policy notes directly.
-            </p>
+      <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6 shadow-xs hover:border-border transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+              <PlusCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Quick Text / FAQ Ingestion
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Add policy excerpts, store hours, refund rules, or custom answers directly without uploading files.
+              </p>
+            </div>
           </div>
           <Button
             type="button"
             variant="default"
             size="sm"
             onClick={() => setIsOpen(true)}
-            className="text-xs h-8 gap-1.5 shrink-0 self-start sm:self-auto"
+            className="text-xs h-8.5 px-3.5 gap-1.5 shrink-0 self-start sm:self-auto font-medium"
           >
             <PlusCircle className="h-3.5 w-3.5" />
             Add Knowledge
@@ -108,15 +113,20 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
   }
 
   return (
-    <div className="rounded border border-border bg-card p-5">
-      <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground">
-            Add Knowledge or FAQ
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Your chatbot will use this information to answer customer questions.
-          </p>
+    <div className="rounded-2xl border border-border/70 bg-card p-5 sm:p-6 shadow-xs space-y-4">
+      <div className="flex items-center justify-between pb-3.5 border-b border-border/60">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+            <PlusCircle className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              Add Knowledge or FAQ
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Your chatbot will use this entry as ground truth to answer customer inquiries.
+            </p>
+          </div>
         </div>
         <button
           type="button"
@@ -125,15 +135,15 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
             setStatusMessage(null);
           }}
           disabled={isSubmitting}
-          className="text-xs text-muted-foreground hover:text-foreground font-medium"
+          className="text-xs text-muted-foreground hover:text-foreground font-medium px-2 py-1 rounded-md hover:bg-muted transition-colors"
         >
           Cancel
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="faq-title" className="block text-xs font-medium text-foreground mb-1">
+      <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+        <div className="space-y-1.5">
+          <label htmlFor="faq-title" className="block text-xs font-medium text-foreground">
             Topic or Question
           </label>
           <input
@@ -142,19 +152,19 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             disabled={isSubmitting}
-            placeholder="e.g. Return Policy & Store Hours"
+            placeholder="e.g. Return Policy & Warranty Terms"
             maxLength={FAQ_LIMITS.maxTitleLength}
-            className="w-full rounded border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+            className="w-full rounded-xl border border-border/80 bg-background px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring transition-colors"
             required
           />
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-1">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
             <label htmlFor="faq-content" className="block text-xs font-medium text-foreground">
-              Information or Answer
+              Knowledge Content / Answer
             </label>
-            <span className="text-[11px] font-mono text-muted-foreground">
+            <span className="text-[11px] font-mono text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-md border border-border/40">
               {content.length} / {FAQ_LIMITS.maxTextLength.toLocaleString()} characters
             </span>
           </div>
@@ -164,25 +174,31 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             disabled={isSubmitting}
-            placeholder="e.g. Customers can return unworn items within 30 days of purchase with original receipt for a full refund..."
+            placeholder="e.g. Customers can return items in their original packaging within 30 days of purchase for a full refund or exchange..."
             maxLength={FAQ_LIMITS.maxTextLength}
-            className="w-full rounded border border-border bg-background p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground resize-y"
+            className="w-full rounded-xl border border-border/80 bg-background p-3.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring transition-colors resize-y leading-relaxed"
             required
           />
         </div>
 
         {statusMessage && (
-          <div className="flex items-start gap-2 p-3 rounded text-xs border border-border bg-muted/40 text-foreground">
+          <div
+            className={`flex items-start gap-2.5 p-3 rounded-xl text-xs border ${
+              statusMessage.type === 'success'
+                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                : 'border-rose-500/20 bg-rose-500/10 text-rose-500'
+            }`}
+          >
             {statusMessage.type === 'success' ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-foreground" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
             ) : (
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-foreground" />
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
             )}
-            <p>{statusMessage.text}</p>
+            <p className="font-medium">{statusMessage.text}</p>
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
           <Button
             type="button"
             variant="outline"
@@ -192,7 +208,7 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
               setStatusMessage(null);
             }}
             disabled={isSubmitting}
-            className="text-xs h-8"
+            className="text-xs h-8.5 px-3.5"
           >
             Cancel
           </Button>
@@ -201,15 +217,15 @@ export function FaqUploadForm({ workspaceSlug }: Props) {
             variant="default"
             size="sm"
             disabled={isSubmitting}
-            className="text-xs h-8 gap-1.5"
+            className="text-xs h-8.5 px-4 gap-1.5 font-medium"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Saving to Chatbot...
+                Indexing into Knowledge Base...
               </>
             ) : (
-              'Save to Chatbot'
+              'Save to Knowledge Base'
             )}
           </Button>
         </div>

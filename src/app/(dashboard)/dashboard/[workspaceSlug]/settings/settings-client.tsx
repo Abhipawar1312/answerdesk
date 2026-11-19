@@ -157,59 +157,72 @@ export function SettingsClient({
   return (
     <div className="space-y-8 max-w-4xl">
       {/* Header */}
-      <div className="pb-4 border-b border-border">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Workspace Settings</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Configure security, view plan quotas, and copy your embed code.
+      <div className="pb-4 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Shield className="h-4 w-4" />
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Workspace Settings
+          </h1>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1.5 ml-10">
+          Manage embedding security, configure domain allowlists, and monitor plan message quotas.
         </p>
       </div>
 
       {/* Plan Usage & Limits Card */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div className="rounded-2xl border border-border/70 bg-card p-6 space-y-5 shadow-xs">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Gauge className="w-5 h-5 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Plan Usage & Message Limits</h2>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded border border-border text-muted-foreground bg-muted/60">
-              Billing: Test Mode
-            </span>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <Gauge className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Subscription & Message Quota</h2>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                Billing environment: Live & Stripe Webhooks active
+              </span>
+            </div>
           </div>
-          <span className="uppercase text-[10px] font-bold px-2 py-0.5 rounded bg-foreground text-background">
-            {plan} Plan
+          <span className="uppercase text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+            {plan} Tier
           </span>
         </div>
 
         <div className="space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Monthly Customer Messages</span>
-            <span className="font-medium text-foreground">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Monthly Customer Messages</span>
+            <span className="font-mono text-xs font-semibold text-foreground">
               {monthlyMessageCount} / {messageLimit} ({usagePercent}%)
             </span>
           </div>
           <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full bg-foreground transition-all duration-300"
-              style={{ width: `${usagePercent}%` }}
+              className={`h-full rounded-full transition-all duration-300 ${
+                usagePercent >= 90 ? 'bg-amber-500' : 'bg-primary'
+              }`}
+              style={{ width: `${Math.max(3, usagePercent)}%` }}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-border/40">
-          <p className="text-xs text-muted-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/60">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             {plan === 'free'
-              ? 'Free plan includes 100 customer messages per month. Upgrade to Pro for 2,500 messages and 50 documents.'
-              : 'Pro plan active with 2,500 monthly messages and 50 document slots.'}
+              ? 'Free tier includes 100 customer messages per month. Upgrade to Pro for 2,500 messages, 50 document slots, and custom branding.'
+              : 'Pro tier active with 2,500 monthly messages and 50 knowledge base slots.'}
           </p>
           <Button
             size="sm"
             onClick={handleBillingAction}
             disabled={isBillingLoading}
-            className="text-xs shrink-0 ml-4 flex items-center gap-1.5"
+            className="text-xs shrink-0 sm:ml-4 flex items-center gap-1.5 h-8.5 px-4 rounded-xl font-medium shadow-2xs"
           >
             {isBillingLoading ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Processing...
+                Connecting...
               </>
             ) : plan === 'free' ? (
               <>
@@ -226,20 +239,22 @@ export function SettingsClient({
         </div>
 
         {billingError && (
-          <p className="text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
+          <p className="text-xs text-rose-500 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 font-medium">
             {billingError}
           </p>
         )}
       </div>
 
       {/* Allowed Origins (Security) */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-muted-foreground" />
+      <div className="rounded-2xl border border-border/70 bg-card p-6 space-y-4 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Shield className="w-4 h-4" />
+          </div>
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Allowed Origins & Domains</h2>
+            <h2 className="text-sm font-semibold text-foreground">Allowed Domain Allowlist (CORS & CSP)</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Restrict where your chat widget can be loaded. Leave empty to allow any domain (useful in development).
+              Restrict iframe framing to authorized websites only to prevent quota theft.
             </p>
           </div>
         </div>
@@ -249,43 +264,43 @@ export function SettingsClient({
             value={newOrigin}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOrigin(e.target.value)}
             placeholder="e.g. https://mycompany.com or sub.example.com"
-            className="text-xs"
+            className="text-xs h-9 bg-background"
           />
-          <Button type="submit" size="sm" variant="outline" className="text-xs shrink-0">
+          <Button type="submit" size="sm" variant="outline" className="text-xs shrink-0 h-9 rounded-xl border-border/80 shadow-2xs font-medium">
             <Plus className="w-3.5 h-3.5 mr-1" />
             Add Domain
           </Button>
         </form>
 
         {origins.length === 0 ? (
-          <div className="flex items-start gap-2.5 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-500 text-xs">
+          <div className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-500 text-xs">
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-foreground">
                 Empty allowlist: embedding on external websites is restricted in production.
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                In production, an empty allowlist serves <code className="font-mono text-[10px]">frame-ancestors &apos;self&apos;</code>, which prevents other websites from embedding your widget and consuming your message quota (direct links to <code className="font-mono text-[10px]">/widget/{workspaceSlug}</code> continue to work). In development, it remains open (<code className="font-mono text-[10px]">* &apos;self&apos;</code>). To allow your website to embed this widget in production, add your domain above.
+                In production, an empty allowlist serves <code className="font-mono text-[10px] px-1 py-0.5 rounded bg-muted/60 text-foreground">frame-ancestors &apos;self&apos;</code>. To allow your website to embed this widget in production, add your domain above.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-2">
-            {origins.map((origin, idx) => (
+            {origins.map((originItem, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/30 text-xs"
+                className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20 text-xs shadow-2xs"
               >
-                <div className="flex items-center gap-2">
-                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="font-mono text-foreground">{origin}</span>
+                <div className="flex items-center gap-2.5">
+                  <Globe className="w-4 h-4 text-primary" />
+                  <span className="font-mono text-foreground font-medium">{originItem}</span>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRemoveOrigin(idx)}
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                  aria-label={`Remove origin ${origin}`}
+                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                  aria-label={`Remove origin ${originItem}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
@@ -295,18 +310,18 @@ export function SettingsClient({
         )}
 
         {errorMessage && (
-          <p className="text-xs text-destructive bg-destructive/10 p-2 rounded border border-destructive/20">
+          <p className="text-xs text-rose-500 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 font-medium">
             {errorMessage}
           </p>
         )}
 
         {saveSuccess && (
-          <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded border border-emerald-500/20 flex items-center gap-1.5">
-            <Check className="w-3.5 h-3.5" /> Allowed origins saved successfully.
+          <p className="text-xs text-emerald-500 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 flex items-center gap-1.5 font-medium">
+            <Check className="w-3.5 h-3.5" /> Allowed origins updated successfully.
           </p>
         )}
 
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-2 border-t border-border/60">
           <span className="text-[11px] text-muted-foreground">
             Changes take effect immediately on new widget loads.
           </span>
@@ -314,13 +329,13 @@ export function SettingsClient({
             size="sm"
             onClick={handleSaveOrigins}
             disabled={isSaving}
-            className="text-xs min-w-24"
+            className="text-xs min-w-28 h-8.5 rounded-xl font-medium shadow-2xs"
           >
             {isSaving ? (
               'Saving...'
             ) : saveSuccess ? (
               <span className="flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Saved
+                <Check className="w-3.5 h-3.5 text-emerald-500" /> Saved
               </span>
             ) : (
               'Save Origins'
@@ -330,10 +345,10 @@ export function SettingsClient({
       </div>
 
       {/* Widget Display & Privacy Settings */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div className="rounded-2xl border border-border/70 bg-card p-6 space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <h2 className="text-sm font-semibold text-foreground">Widget Citation Excerpts</h2>
+            <h2 className="text-sm font-semibold text-foreground">Widget Source Citation Excerpts</h2>
             <p className="text-xs text-muted-foreground">
               By default, visitors can click citations to view 120-character excerpts. Enable this to hide snippets and protect sensitive internal text.
             </p>
@@ -342,13 +357,13 @@ export function SettingsClient({
             size="sm"
             onClick={handleSaveDisplaySettings}
             disabled={isSavingDisplay}
-            className="text-xs min-w-24 shrink-0 ml-4"
+            className="text-xs min-w-28 h-8.5 rounded-xl font-medium shadow-2xs shrink-0 ml-4"
           >
             {isSavingDisplay ? (
               'Saving...'
             ) : displaySuccess ? (
               <span className="flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Saved
+                <Check className="w-3.5 h-3.5 text-emerald-500" /> Saved
               </span>
             ) : (
               'Save Display'
@@ -356,31 +371,31 @@ export function SettingsClient({
           </Button>
         </div>
 
-        <label className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/30 cursor-pointer">
+        <label className="flex items-center gap-3 p-3.5 rounded-xl border border-border/70 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors">
           <input
             type="checkbox"
             checked={hideCitations}
             onChange={(e) => setHideCitations(e.target.checked)}
-            className="rounded border-border text-foreground focus:ring-0 w-4 h-4"
+            className="rounded border-border text-primary focus:ring-0 w-4 h-4"
           />
           <div className="text-xs">
-            <span className="font-medium text-foreground block">Hide document text snippets in public widget</span>
+            <span className="font-semibold text-foreground block">Hide document text snippets in public widget</span>
             <span className="text-muted-foreground">Only document titles will appear as references without raw body excerpts.</span>
           </div>
         </label>
 
         {displaySuccess && (
-          <p className="text-xs text-emerald-500 bg-emerald-500/10 p-2.5 rounded border border-emerald-500/20 flex items-center gap-1.5">
+          <p className="text-xs text-emerald-500 bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 flex items-center gap-1.5 font-medium">
             <Check className="w-3.5 h-3.5" /> Display settings saved successfully.
           </p>
         )}
       </div>
 
       {/* Embed Code Snippet Card */}
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+      <div className="rounded-2xl border border-border/70 bg-card p-6 space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
-            <h2 className="text-sm font-semibold text-foreground">Embed Script Code</h2>
+            <h2 className="text-sm font-semibold text-foreground">Embed HTML Script Tag</h2>
             <p className="text-xs text-muted-foreground">
               Paste this HTML snippet right before the closing &lt;/body&gt; tag on your website.
             </p>
@@ -389,14 +404,14 @@ export function SettingsClient({
             size="sm"
             variant="outline"
             onClick={handleCopySnippet}
-            className="text-xs flex items-center gap-1.5"
+            className="text-xs flex items-center gap-1.5 h-8.5 rounded-xl border-border/80 shadow-2xs"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied!' : 'Copy Code'}
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
+            <span className={copied ? 'text-emerald-500 font-medium' : ''}>{copied ? 'Copied!' : 'Copy Code'}</span>
           </Button>
         </div>
 
-        <pre className="p-3.5 rounded-lg bg-muted text-foreground text-xs font-mono overflow-x-auto border border-border/60">
+        <pre className="p-4 rounded-xl bg-muted/40 text-foreground text-xs font-mono overflow-x-auto border border-border/60 leading-relaxed shadow-inner">
           <code suppressHydrationWarning>{embedSnippet}</code>
         </pre>
       </div>

@@ -228,69 +228,66 @@ export function TestChatClient({
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem-2rem)] sm:h-[calc(100vh-3.5rem-3rem)] w-full max-w-6xl mx-auto">
       {/* Header with Title, Actions, and Hourly Quota */}
-      <div className="shrink-0 space-y-3 pb-3 border-b border-border">
+      <div className="shrink-0 space-y-3 pb-3 border-b border-border/60">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                <Sparkles className="h-4 w-4" />
+              </div>
               <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                Test Chat
+                AI Test Playground
               </h1>
-              <span className="font-mono text-[11px] px-2 py-0.5 rounded border border-border bg-muted/20 text-muted-foreground shrink-0">
-                {hourlyCount} / 20 this hour
+              <span className="font-mono text-[11px] px-2.5 py-0.5 rounded-full border border-border/80 bg-muted/40 text-muted-foreground shrink-0">
+                {hourlyCount} / 20 messages this hour
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Test how your chatbot responds to customer inquiries using your knowledge base articles.
+            <p className="text-xs text-muted-foreground mt-1.5 ml-10">
+              Simulate visitor chats in real time to verify answer accuracy, source attribution, and policy boundaries.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] text-muted-foreground hidden md:inline">
-              Test chats are not saved in this view
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            <span className="text-[11px] text-muted-foreground hidden md:inline font-mono">
+              Sandbox mode (unmetered quota)
             </span>
             <button
               type="button"
               onClick={handleNewChat}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-foreground text-xs font-medium transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 bg-card hover:bg-muted text-foreground text-xs font-medium transition-all shadow-2xs"
             >
-              <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>New test chat</span>
+              <Plus className="h-3.5 w-3.5 text-primary" />
+              <span>Reset Chat</span>
             </button>
           </div>
         </div>
 
-        {/* Mobile visible note */}
-        <div className="md:hidden flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-          <span>Test chats are not saved in this view</span>
-        </div>
-
         {/* Search Index Missing Notice */}
         {vectorIndexMissing && (
-          <div className="rounded border border-border bg-card p-4 space-y-2">
-            <div className="flex items-center gap-2 text-foreground font-medium text-xs">
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 space-y-1.5 text-xs">
+            <div className="flex items-center gap-2 text-foreground font-semibold">
               <AlertCircle className="h-4 w-4 text-amber-500" />
-              <span>Search Setup Required</span>
+              <span>MongoDB Atlas Search Index Required</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Knowledge search index is not ready yet. Please configure the search index in MongoDB Atlas as detailed in{' '}
-              <code className="font-mono text-foreground">SETUP_FOR_ME.md</code>.
+            <p className="text-muted-foreground leading-relaxed">
+              Knowledge search index is building or not ready yet. Please ensure the vector index exists on your MongoDB collection as detailed in <code className="font-mono text-foreground font-medium">SETUP_FOR_ME.md</code>.
             </p>
           </div>
         )}
 
         {/* No Active Documents Warning */}
         {!hasActiveDocs && (
-          <div className="rounded border border-border bg-card p-4 space-y-2">
-            <div className="flex items-center gap-2 text-foreground font-medium text-xs">
-              <FileText className="h-4 w-4" />
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2 shadow-xs">
+            <div className="flex items-center gap-2 text-foreground font-semibold text-xs">
+              <FileText className="h-4 w-4 text-primary" />
               <span>No Ready Knowledge Base Articles</span>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Your workspace has no active documents. The assistant requires at least one ready knowledge base article to answer questions.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Your workspace has no active documents. The assistant requires at least one ready knowledge base article to ground answers.
             </p>
             <div>
               <Link
                 href={`/dashboard/${workspaceSlug}/documents`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-xs font-medium text-foreground hover:bg-muted/30 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/80 text-xs font-medium text-foreground hover:bg-muted transition-colors shadow-2xs"
               >
                 <span>Add Knowledge Entry</span>
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -301,19 +298,19 @@ export function TestChatClient({
       </div>
 
       {/* Full-Height Chat Panel */}
-      <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-border bg-card overflow-hidden w-full mt-3 shadow-xs">
+      <div className="flex-1 flex flex-col min-h-0 rounded-2xl border border-border/70 bg-card/60 overflow-hidden w-full mt-3 shadow-xs">
         {/* Messages Stream Container (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
           <div className="max-w-[760px] mx-auto w-full space-y-6">
             {messages.length === 0 ? (
-              <div className="h-full min-h-[280px] flex flex-col items-center justify-center text-center p-8 space-y-3">
-                <div className="h-10 w-10 rounded border border-border flex items-center justify-center bg-muted/20 text-muted-foreground">
-                  <Sparkles className="h-5 w-5" />
+              <div className="h-full min-h-[280px] flex flex-col items-center justify-center text-center p-8 space-y-3.5">
+                <div className="h-12 w-12 rounded-2xl border border-border/80 flex items-center justify-center bg-muted/40 text-primary shadow-2xs">
+                  <Sparkles className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-xs font-semibold text-foreground">Start a test conversation</h3>
-                  <p className="text-xs text-muted-foreground max-w-sm">
-                    Ask a question in English, Hindi, or Marathi to test answer accuracy, source attribution, and boundary enforcement.
+                  <h3 className="text-sm font-semibold text-foreground">Interactive Knowledge Sandbox</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+                    Ask questions in English, Hindi, or Marathi to test answer accuracy, source attribution, and policy boundaries.
                   </p>
                 </div>
               </div>
@@ -321,23 +318,23 @@ export function TestChatClient({
               messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-3.5 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {m.role === 'assistant' && (
-                    <div className="h-7 w-7 rounded border border-border bg-foreground text-background flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-3.5 w-3.5" />
+                    <div className="h-8 w-8 rounded-xl border border-border/80 bg-foreground text-background flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                      <Bot className="h-4 w-4" />
                     </div>
                   )}
 
                   <div className={`space-y-2 max-w-[85%] ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                     {/* Message Bubble */}
                     <div
-                      className={`rounded px-4 py-2.5 text-xs leading-relaxed ${
+                      className={`rounded-2xl px-4 py-3 text-xs leading-relaxed shadow-xs ${
                         m.role === 'user'
-                          ? 'bg-foreground text-background font-medium'
+                          ? 'bg-primary text-primary-foreground font-medium rounded-tr-xs'
                           : m.isError
-                          ? 'border border-destructive/30 bg-destructive/5 text-foreground'
-                          : 'border border-border bg-muted/20 text-foreground'
+                          ? 'border border-rose-500/30 bg-rose-500/10 text-foreground rounded-tl-xs'
+                          : 'border border-border/80 bg-card text-foreground rounded-tl-xs'
                       }`}
                     >
                       <p className="whitespace-pre-wrap">
@@ -352,10 +349,10 @@ export function TestChatClient({
                             onClick={handleRetry}
                             data-prompt={m.retryPrompt}
                             disabled={isLoading || hourlyCount >= 20}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-border/80 bg-card hover:bg-muted text-foreground transition-colors disabled:opacity-50 shadow-2xs"
                           >
                             <RotateCcw className="h-3 w-3" />
-                            <span>Retry</span>
+                            <span>Retry Prompt</span>
                           </button>
                         </div>
                       )}
@@ -363,31 +360,31 @@ export function TestChatClient({
 
                     {/* Fallback Unanswered Tag */}
                     {m.isUnanswered && (
-                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-border text-[11px] font-mono text-muted-foreground">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/20 bg-amber-500/10 text-[11px] font-mono text-amber-500">
                         <AlertCircle className="h-3 w-3 text-amber-500" />
-                        <span>This question was saved in Unanswered</span>
+                        <span>Question flagged as unanswered</span>
                       </div>
                     )}
 
                     {/* Source References & Citations */}
                     {m.citations && m.citations.length > 0 && (
-                      <div className="space-y-1.5 pt-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Sources ({m.citations.slice(0, 3).length})
+                      <div className="space-y-2 pt-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+                          Verified Sources ({m.citations.slice(0, 3).length})
                         </span>
                         <div className="flex flex-wrap gap-2">
                           {m.citations.slice(0, 3).map((c, i) => (
                             <div
                               key={i}
-                              className="rounded border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground space-y-0.5"
+                              className="rounded-xl border border-border/70 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground space-y-1 max-w-xs shadow-2xs"
                             >
-                              <div className="flex items-center gap-1 font-medium text-foreground">
-                                <FileText className="h-3 w-3" />
-                                <span className="truncate max-w-[180px]">{c.sourceTitle}</span>
+                              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                                <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                                <span className="truncate">{c.sourceTitle}</span>
                               </div>
                               {c.textSnippet && (
-                                <p className="line-clamp-2 text-[10px] text-muted-foreground font-mono max-w-[220px]">
-                                  {c.textSnippet}
+                                <p className="line-clamp-2 text-[10px] text-muted-foreground font-mono leading-relaxed">
+                                  &ldquo;{c.textSnippet}&rdquo;
                                 </p>
                               )}
                             </div>
@@ -398,8 +395,8 @@ export function TestChatClient({
                   </div>
 
                   {m.role === 'user' && (
-                    <div className="h-7 w-7 rounded border border-border bg-muted/30 text-foreground flex items-center justify-center shrink-0 mt-0.5">
-                      <User className="h-3.5 w-3.5" />
+                    <div className="h-8 w-8 rounded-xl border border-border/80 bg-primary text-primary-foreground flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                      <User className="h-4 w-4" />
                     </div>
                   )}
                 </div>
@@ -407,13 +404,13 @@ export function TestChatClient({
             )}
 
             {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex gap-3 items-center text-muted-foreground text-xs">
-                <div className="h-7 w-7 rounded border border-border bg-foreground text-background flex items-center justify-center shrink-0">
-                  <Bot className="h-3.5 w-3.5" />
+              <div className="flex gap-3.5 items-center text-muted-foreground text-xs">
+                <div className="h-8 w-8 rounded-xl border border-border/80 bg-foreground text-background flex items-center justify-center shrink-0 shadow-2xs">
+                  <Bot className="h-4 w-4" />
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-2 rounded border border-border bg-muted/10">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Searching knowledge base and drafting answer...</span>
+                <div className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border border-border/80 bg-card shadow-2xs">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span>Searching vector index and formulating response...</span>
                 </div>
               </div>
             )}
@@ -424,38 +421,38 @@ export function TestChatClient({
 
         {/* Error Banner */}
         {errorMessage && (
-          <div className="shrink-0 border-t border-border bg-muted/10 px-4 py-2">
-            <div className="max-w-[760px] mx-auto w-full flex items-center gap-2 text-xs text-foreground">
-              <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+          <div className="shrink-0 border-t border-rose-500/20 bg-rose-500/10 px-4 py-2.5">
+            <div className="max-w-[760px] mx-auto w-full flex items-center gap-2 text-xs text-rose-500 font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
               <span className="truncate">{errorMessage}</span>
             </div>
           </div>
         )}
 
         {/* Pinned Bottom Input Form */}
-        <div className="shrink-0 p-3 sm:p-4 border-t border-border bg-card">
+        <div className="shrink-0 p-3 sm:p-4 border-t border-border/60 bg-card">
           <div className="max-w-[760px] mx-auto w-full">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={`Ask a question about ${workspaceName}...`}
+                placeholder={`Ask a question grounded in ${workspaceName}...`}
                 disabled={isLoading || hourlyCount >= 20}
-                className="flex-1 rounded-lg border border-border bg-background px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+                className="flex-1 rounded-xl border border-border/80 bg-background px-4 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-ring disabled:opacity-50 transition-colors"
               />
               <button
                 type="submit"
                 disabled={isLoading || !input.trim() || hourlyCount >= 20}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border bg-foreground text-background font-medium text-xs hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 px-4.5 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0 shadow-2xs"
               >
                 {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 <span className="hidden sm:inline">Send</span>
               </button>
             </form>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 px-1">
-              <span>Isolated test session &bull; Does not consume customer quota</span>
-              <span>Test chats are not saved in this view</span>
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-2 px-1">
+              <span>Isolated sandbox &bull; Does not deduct from customer message limits</span>
+              <span>Test logs are not persisted</span>
             </div>
           </div>
         </div>
